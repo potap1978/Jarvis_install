@@ -2,7 +2,7 @@
 
 # ============================================
 # Джарвис - универсальный установщик Telegram бота
-# Версия: 4.0 - с навыками (skills)
+# Версия: 4.0 - с поддержкой ClawHub навыков и настройкой времени
 # ============================================
 
 set -e
@@ -21,7 +21,7 @@ BOLD='\033[1m'
 JARVIS_DIR="/opt/jarvis"
 JARVIS_USER="jarvis"
 BOT_SCRIPT="$JARVIS_DIR/jarvis_bot.py"
-SKILLS_SCRIPT="$JARVIS_DIR/skills.py"
+SKILLS_DIR="$JARVIS_DIR/skills"
 SERVICE_FILE="/etc/systemd/system/jarvis-bot.service"
 CONFIG_FILE="$JARVIS_DIR/config.env"
 SKILLS_CONFIG="$JARVIS_DIR/skills_config.json"
@@ -86,84 +86,291 @@ show_all_models() {
     echo -e "${CYAN}${BOLD}                              📦 ДОСТУПНЫЕ МОДЕЛИ (44 варианта)                              ${NC}"
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "  ${YELLOW}🧠 REASONING (думают вслух):${NC}"
-    echo -e "     1. deepseek-r1:7b       2. deepseek-r1:8b       3. qwq:32b"
-    echo ""
-    echo -e "  ${YELLOW}🏆 ТОПОВЫЕ ЛОКАЛЬНЫЕ:${NC}"
-    echo -e "     4. qwen3:8b             5. qwen3:14b            6. qwen2.5:7b"
-    echo -e "     7. llama3.3:70b         8. gpt-oss:20b          9. gpt-oss:120b"
-    echo ""
-    echo -e "  ${YELLOW}💻 КОД И ТЕХНИЧЕСКИЕ:${NC}"
-    echo -e "    10. deepseek-coder:6.7b  11. qwen2.5-coder:7b"
-    echo ""
-    echo -e "  ${YELLOW}⚡ ЛЁГКИЕ (для слабых серверов):${NC}"
-    echo -e "    12. qwen2.5:1.5b         13. llama3.2:3b         14. phi3:3.8b"
-    echo ""
-    echo -e "  ${YELLOW}🎨 МУЛЬТИМОДАЛЬНЫЕ (видят изображения):${NC}"
-    echo -e "    15. llava:7b             16. llava-phi3:3.8b     17. moondream:1.8b"
-    echo -e "    18. qwen3-vl:8b          19. gemma3:12b-vision   20. minicpm-v:8b"
-    echo -e "    21. deepseek-ocr:3b      22. cogvlm:17b          23. bakllava:7b"
-    echo -e "    24. llava-llama3:8b      25. granite3.2-vision   26. qwen2.5vl:7b"
-    echo -e "    27. qwen2.5vl:32b"
-    echo ""
-    echo -e "  ${YELLOW}🎵 АУДИО МОДЕЛИ (распознавание речи):${NC}"
-    echo -e "    28. whisper:tiny         29. whisper:small       30. whisper:medium"
-    echo -e "    31. whisper:large"
-    echo ""
-    echo -e "  ${YELLOW}🎥 ВИДЕО МОДЕЛИ:${NC}"
-    echo -e "    32. video-llava:7b       33. internvl2:8b        34. llava-next:7b"
-    echo ""
-    echo -e "  ${YELLOW}🤖 CHATGPT (платные варианты):${NC}"
-    echo -e "    35. ChatGPT (OpenAI API)       - 💰 платный API"
-    echo -e "    36. ChatGPT (ChatMock)         - 💰 требует ChatGPT Plus"
-    echo -e "    37. ChatGPT (GPT-OSS)          - ✅ бесплатно, локально"
-    echo ""
-    echo -e "  ${YELLOW}🔧 38. Своя модель${NC}"
+    echo -e "  ${YELLOW}🧠 REASONING:${NC} 1.deepseek-r1:7b  2.deepseek-r1:8b  3.qwq:32b"
+    echo -e "  ${YELLOW}🏆 ТОПОВЫЕ:${NC}     4.qwen3:8b       5.qwen3:14b      6.qwen2.5:7b"
+    echo -e "  ${YELLOW}💻 КОД:${NC}         10.deepseek-coder:6.7b  11.qwen2.5-coder:7b"
+    echo -e "  ${YELLOW}⚡ ЛЁГКИЕ:${NC}      12.qwen2.5:1.5b  13.llama3.2:3b   14.phi3:3.8b"
+    echo -e "  ${YELLOW}🎨 МУЛЬТИМОДАЛЬНЫЕ:${NC} 15.llava:7b  16.llava-phi3:3.8b  17.moondream:1.8b  18.qwen3-vl:8b"
+    echo -e "  ${YELLOW}🎵 АУДИО:${NC}       28.whisper:tiny  29.whisper:small  30.whisper:medium  31.whisper:large"
+    echo -e "  ${YELLOW}🎥 ВИДЕО:${NC}       32.video-llava:7b  33.internvl2:8b  34.llava-next:7b"
+    echo -e "  ${YELLOW}🤖 CHATGPT:${NC}     35.ChatGPT(API)  36.ChatMock  37.GPT-OSS"
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
 # ============================================
-# СОЗДАНИЕ СКРИПТА НАВЫКОВ
+# НАСТРОЙКА ВРЕМЕНИ И ЧАСОВОГО ПОЯСА
 # ============================================
-create_skills_script() {
-    cat > $SKILLS_SCRIPT << 'EOF'
+configure_time() {
+    clear
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                         🕐 НАСТРОЙКА ВРЕМЕНИ И ЧАСОВОГО ПОЯСА                    ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    # Показываем текущее время и часовой пояс
+    echo -e "${YELLOW}Текущее время на сервере:${NC} $(date)"
+    echo -e "${YELLOW}Текущий часовой пояс:${NC} $(cat /etc/timezone 2>/dev/null || echo "не задан")"
+    echo ""
+
+    # Список популярных часовых поясов
+    echo -e "${CYAN}Выберите часовой пояс:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC}) Europe/Moscow     (Москва, UTC+3)"
+    echo -e "  ${GREEN}2${NC}) Europe/Kaliningrad (Калининград, UTC+2)"
+    echo -e "  ${GREEN}3${NC}) Europe/Samara     (Самара, UTC+4)"
+    echo -e "  ${GREEN}4${NC}) Asia/Yekaterinburg (Екатеринбург, UTC+5)"
+    echo -e "  ${GREEN}5${NC}) Asia/Novosibirsk  (Новосибирск, UTC+7)"
+    echo -e "  ${GREEN}6${NC}) Asia/Vladivostok  (Владивосток, UTC+10)"
+    echo -e "  ${GREEN}7${NC}) Europe/London     (Лондон, UTC+0)"
+    echo -e "  ${GREEN}8${NC}) America/New_York  (Нью-Йорк, UTC-4)"
+    echo -e "  ${GREEN}9${NC}) Свой часовой пояс (введите в формате Continent/City)"
+    echo -e "  ${GREEN}0${NC}) Пропустить (оставить текущий)"
+    echo ""
+    read -p "👉 Выберите [0-9]: " timezone_choice
+
+    case $timezone_choice in
+        1) TIMEZONE="Europe/Moscow" ;;
+        2) TIMEZONE="Europe/Kaliningrad" ;;
+        3) TIMEZONE="Europe/Samara" ;;
+        4) TIMEZONE="Asia/Yekaterinburg" ;;
+        5) TIMEZONE="Asia/Novosibirsk" ;;
+        6) TIMEZONE="Asia/Vladivostok" ;;
+        7) TIMEZONE="Europe/London" ;;
+        8) TIMEZONE="America/New_York" ;;
+        9) 
+            echo ""
+            read -p "👉 Введите часовой пояс (например: Asia/Tokyo): " TIMEZONE
+            ;;
+        0) 
+            print_info "Часовой пояс не изменён"
+            TIMEZONE=""
+            ;;
+        *) TIMEZONE="Europe/Moscow" ;;
+    esac
+
+    if [ -n "$TIMEZONE" ]; then
+        print_info "Установка часового пояса: $TIMEZONE"
+        timedatectl set-timezone $TIMEZONE 2>/dev/null || {
+            print_warning "Не удалось установить через timedatectl, пробую через ln..."
+            rm -f /etc/localtime
+            ln -s /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+            echo "$TIMEZONE" > /etc/timezone
+        }
+        print_success "Часовой пояс установлен: $(date)"
+    fi
+
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}Настройка синхронизации времени (NTP)${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    # Проверка наличия NTP сервисов
+    echo -e "${BLUE}Доступные NTP-серверы для синхронизации:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC}) pool.ntp.org           (стандартные серверы, автоматический выбор)"
+    echo -e "  ${GREEN}2${NC}) ru.pool.ntp.org        (российские серверы)"
+    echo -e "  ${GREEN}3${NC}) europe.pool.ntp.org    (европейские серверы)"
+    echo -e "  ${GREEN}4${NC}) time.google.com        (серверы Google)"
+    echo -e "  ${GREEN}5${NC}) time.cloudflare.com    (серверы Cloudflare)"
+    echo -e "  ${GREEN}6${NC}) Свои серверы (введите через пробел)"
+    echo -e "  ${GREEN}0${NC}) Пропустить (не настраивать синхронизацию)"
+    echo ""
+    read -p "👉 Выберите NTP-сервер [0-6]: " ntp_choice
+
+    NTP_SERVERS=""
+    case $ntp_choice in
+        1) NTP_SERVERS="pool.ntp.org" ;;
+        2) NTP_SERVERS="ru.pool.ntp.org" ;;
+        3) NTP_SERVERS="europe.pool.ntp.org" ;;
+        4) NTP_SERVERS="time.google.com" ;;
+        5) NTP_SERVERS="time.cloudflare.com" ;;
+        6) 
+            echo ""
+            read -p "👉 Введите NTP-серверы через пробел: " NTP_SERVERS
+            ;;
+        0) print_info "Синхронизация времени не настроена" ;;
+        *) NTP_SERVERS="pool.ntp.org" ;;
+    esac
+
+    if [ -n "$NTP_SERVERS" ]; then
+        print_info "Настройка синхронизации времени с $NTP_SERVERS..."
+        
+        # Установка chrony (современный NTP клиент)
+        if ! command -v chronyc &> /dev/null; then
+            print_info "Установка chrony..."
+            apt install -y chrony
+        fi
+        
+        # Настройка chrony
+        if [ -f /etc/chrony/chrony.conf ]; then
+            # Бэкап конфига
+            cp /etc/chrony/chrony.conf /etc/chrony/chrony.conf.bak
+            
+            # Очищаем старые серверы и добавляем новые
+            sed -i '/^server /d' /etc/chrony/chrony.conf
+            for server in $NTP_SERVERS; do
+                echo "server $server iburst" >> /etc/chrony/chrony.conf
+            done
+            
+            # Перезапуск chrony
+            systemctl restart chrony
+            sleep 2
+            
+            # Проверка синхронизации
+            if chronyc tracking &>/dev/null; then
+                print_success "Синхронизация времени настроена"
+                echo ""
+                chronyc sources -v
+            else
+                print_warning "Не удалось настроить chrony, пробую systemd-timesyncd..."
+                
+                # Альтернатива: systemd-timesyncd
+                if command -v timedatectl &> /dev/null; then
+                    timedatectl set-ntp true
+                    for server in $NTP_SERVERS; do
+                        echo "NTP=$server" >> /etc/systemd/timesyncd.conf
+                    done
+                    systemctl restart systemd-timesyncd
+                    print_success "Синхронизация через systemd-timesyncd настроена"
+                fi
+            fi
+        fi
+    fi
+
+    echo ""
+    print_success "Настройка времени завершена!"
+    echo -e "${YELLOW}Текущее время:${NC} $(date)"
+    pause
+}
+
+# ============================================
+# ВЫБОР ПРОВАЙДЕРОВ НАВЫКОВ
+# ============================================
+select_skills() {
+    clear
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                         🧩 ВЫБОР ПРОВАЙДЕРОВ НАВЫКОВ                             ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "Выберите провайдеров для подключения (можно несколько):"
+    echo ""
+    echo -e "  ${GREEN}[ ] 1. GOOGLE${NC}        - Gmail, Календарь, Контакты, Таблицы, Диск"
+    echo -e "  ${GREEN}[ ] 2. ORACLE${NC}        - Базы данных, Object Storage, Compute"
+    echo -e "  ${GREEN}[ ] 3. MICROSOFT${NC}     - Outlook, Teams, OneDrive, Календарь"
+    echo -e "  ${GREEN}[ ] 4. AWS${NC}           - S3, EC2, Lambda, RDS"
+    echo -e "  ${GREEN}[ ] 5. GITHUB${NC}        - Репозитории, Issues, PR"
+    echo -e "  ${GREEN}[ ] 6. DOCKER/K8S${NC}    - Контейнеры, Kubernetes"
+    echo -e "  ${GREEN}[ ] 7. TELEGRAM${NC}      - Управление ботом"
+    echo -e "  ${GREEN}[ ] 8. WEATHER/NEWS${NC}  - Погода, новости"
+    echo -e "  ${GREEN}[ ] 9. CRYPTO${NC}        - Курсы валют, криптовалюты"
+    echo -e "  ${GREEN}[ ]10. SMART HOME${NC}    - Умный дом"
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    read -p "👉 Введите номера через пробел (например: 1 5 8): " SKILLS_CHOICE
+    
+    SELECTED_SKILLS=""
+    for num in $SKILLS_CHOICE; do
+        case $num in
+            1) SELECTED_SKILLS="$SELECTED_SKILLS google" ;;
+            2) SELECTED_SKILLS="$SELECTED_SKILLS oracle" ;;
+            3) SELECTED_SKILLS="$SELECTED_SKILLS microsoft" ;;
+            4) SELECTED_SKILLS="$SELECTED_SKILLS aws" ;;
+            5) SELECTED_SKILLS="$SELECTED_SKILLS github" ;;
+            6) SELECTED_SKILLS="$SELECTED_SKILLS docker" ;;
+            7) SELECTED_SKILLS="$SELECTED_SKILLS telegram" ;;
+            8) SELECTED_SKILLS="$SELECTED_SKILLS weather" ;;
+            9) SELECTED_SKILLS="$SELECTED_SKILLS crypto" ;;
+            10) SELECTED_SKILLS="$SELECTED_SKILLS smarthome" ;;
+        esac
+    done
+    
+    # Базовые навыки всегда включены
+    SELECTED_SKILLS="$SELECTED_SKILLS base"
+    echo "$SELECTED_SKILLS" > /tmp/selected_skills
+    print_success "Выбраны навыки: $SELECTED_SKILLS"
+}
+
+# ============================================
+# ВЫБОР НАВЫКОВ CLAWHUB
+# ============================================
+show_clawhub_skills() {
+    clear
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                         🦞 НАВЫКИ CLAWHUB ДЛЯ ДЖАРВИСА                          ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC}) self-improving-agent  - самообучение, запоминает ошибки"
+    echo -e "  ${GREEN}2${NC}) ontology              - граф знаний, связи между данными"
+    echo -e "  ${GREEN}3${NC}) API Gateway           - 100+ API (Google, MS, GitHub, Slack)"
+    echo -e "  ${GREEN}4${NC}) Agent Browser         - автоматизация браузера"
+    echo -e "  ${GREEN}5${NC}) Obsidian              - работа с заметками Obsidian"
+    echo -e "  ${GREEN}6${NC}) Word / DOCX           - создание и редактирование документов"
+    echo -e "  ${GREEN}7${NC}) Excel / XLSX          - работа с таблицами Excel"
+    echo -e "  ${GREEN}8${NC}) Mcporter              - управление MCP серверами"
+    echo -e "  ${GREEN}9${NC}) Baidu Search          - поиск через Baidu"
+    echo -e "  ${GREEN}10${NC}) Все популярные навыки (рекомендуется)"
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    read -p "👉 Введите номера через пробел (например: 1 2 3): " CLAWHUB_CHOICE
+    
+    # Если выбран вариант 10, показываем подтверждение
+    if [[ "$CLAWHUB_CHOICE" == *"10"* ]]; then
+        echo ""
+        echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${YELLOW}│  📦 ВЫБРАНЫ ВСЕ ПОПУЛЯРНЫЕ НАВЫКИ CLAWHUB                       │${NC}"
+        echo -e "${YELLOW}├─────────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "│                                                                 │${NC}"
+        echo -e "│  Будут установлены следующие навыки:                           │${NC}"
+        echo -e "│                                                                 │${NC}"
+        echo -e "│  ✅ 1. self-improving-agent  - самообучение, запоминает ошибки  │${NC}"
+        echo -e "│  ✅ 2. ontology              - граф знаний                      │${NC}"
+        echo -e "│  ✅ 3. API Gateway           - 100+ API                         │${NC}"
+        echo -e "│  ✅ 4. Agent Browser         - автоматизация браузера           │${NC}"
+        echo -e "│  ✅ 5. Obsidian              - работа с заметками               │${NC}"
+        echo -e "│  ✅ 6. Word / DOCX           - создание документов              │${NC}"
+        echo -e "│  ✅ 7. Excel / XLSX          - работа с таблицами               │${NC}"
+        echo -e "│  ✅ 8. Mcporter              - управление MCP серверами         │${NC}"
+        echo -e "│  ✅ 9. Baidu Search          - поиск через Baidu                │${NC}"
+        echo -e "│                                                                 │${NC}"
+        echo -e "│  ⚠️  Установка всех навыков может занять 5-10 минут            │${NC}"
+        echo -e "│     и потребует ~500MB дополнительного места.                   │${NC}"
+        echo -e "│                                                                 │${NC}"
+        echo -e "└─────────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        read -p "👉 Подтвердить установку всех навыков? (y/N): " confirm_all
+        if [[ "$confirm_all" != "y" && "$confirm_all" != "Y" ]]; then
+            print_info "Установка всех навыков отменена. Выберите конкретные."
+            show_clawhub_skills
+            return
+        fi
+        CLAWHUB_CHOICE="1 2 3 4 5 6 7 8 9"
+    fi
+    
+    echo "$CLAWHUB_CHOICE" > /tmp/clawhub_selected
+}
+
+# ============================================
+# СОЗДАНИЕ БАЗОВЫХ НАВЫКОВ
+# ============================================
+create_base_skills() {
+    mkdir -p $SKILLS_DIR
+    cat > $SKILLS_DIR/base.py << 'EOF'
 #!/usr/bin/env python3
 import subprocess
 import json
 import os
 import requests
 import re
-from datetime import datetime
-
-SKILLS_CONFIG = "/opt/jarvis/skills_config.json"
-
-def load_skills_config():
-    if os.path.exists(SKILLS_CONFIG):
-        with open(SKILLS_CONFIG, 'r') as f:
-            return json.load(f)
-    return {
-        "system": True,
-        "file": True,
-        "weather": True,
-        "reminder": True,
-        "search": True
-    }
-
-def save_skills_config(config):
-    with open(SKILLS_CONFIG, 'w') as f:
-        json.dump(config, f, indent=2)
-
-# ============================================
-# НАВЫКИ
-# ============================================
 
 def execute_shell(command, user_id):
     dangerous = ["rm -rf /", "mkfs", "dd if=", "> /dev/sda", "shutdown", "reboot", "poweroff"]
     for d in dangerous:
         if d in command:
             return f"⛔ Команда '{d}' заблокирована"
-    
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
         output = result.stdout if result.stdout else result.stderr
@@ -211,7 +418,6 @@ def search_web(query):
         )
         results = re.findall(r'<a rel="nofollow" class="result-link" href="([^"]+)"', response.text)
         titles = re.findall(r'<a class="result-link" [^>]*><span[^>]*>([^<]+)</span>', response.text)
-        
         output = f"🔍 Результаты поиска для '{query}':\n\n"
         for i, (title, url) in enumerate(zip(titles[:5], results[:5])):
             output += f"{i+1}. {title}\n   {url}\n\n"
@@ -236,19 +442,19 @@ def process_skills(text, user_id, skills_config, send_callback=None):
     text_lower = text.lower()
     
     if text_lower.startswith('!') or text_lower.startswith('$'):
-        if skills_config.get("system", False):
+        if skills_config.get("system", True):
             command = text[1:] if text.startswith('!') else text[1:]
             return execute_shell(command, user_id)
         return "⛔ Навык 'system' отключён"
     
     if text_lower.startswith('@cat '):
-        if skills_config.get("file", False):
+        if skills_config.get("file", True):
             path = text[5:].strip()
             return read_file(path)
         return "⛔ Навык 'file' отключён"
     
     if text_lower.startswith('@write '):
-        if skills_config.get("file", False):
+        if skills_config.get("file", True):
             parts = text[7:].split('||', 1)
             if len(parts) == 2:
                 path = parts[0].strip()
@@ -258,20 +464,20 @@ def process_skills(text, user_id, skills_config, send_callback=None):
         return "⛔ Навык 'file' отключён"
     
     if 'погода' in text_lower or 'weather' in text_lower:
-        if skills_config.get("weather", False):
+        if skills_config.get("weather", True):
             city_match = re.search(r'(?:в|in)\s+([A-Za-zА-Яа-я-]+)', text)
             city = city_match.group(1) if city_match else "Moscow"
             return get_weather(city)
         return "⛔ Навык 'weather' отключён"
     
     if text_lower.startswith('найди ') or text_lower.startswith('поиск ') or text_lower.startswith('search '):
-        if skills_config.get("search", False):
+        if skills_config.get("search", True):
             query = text_lower.replace('найди ', '').replace('поиск ', '').replace('search ', '')
             return search_web(query)
         return "⛔ Навык 'search' отключён"
     
     if text_lower.startswith('напомни ') or text_lower.startswith('remind '):
-        if skills_config.get("reminder", False):
+        if skills_config.get("reminder", True):
             parts = text_lower.replace('напомни ', '').replace('remind ', '').split(' через ', 1)
             if len(parts) == 2:
                 reminder_text = parts[0]
@@ -289,47 +495,621 @@ def process_skills(text, user_id, skills_config, send_callback=None):
     
     return None
 
-def toggle_skill(skill_name, enable):
-    config = load_skills_config()
-    if skill_name in config:
-        config[skill_name] = enable
-        save_skills_config(config)
-        return f"✅ Навык '{skill_name}' {'включён' if enable else 'отключён'}"
-    return f"❌ Навык '{skill_name}' не найден"
-
-def list_skills():
-    config = load_skills_config()
-    output = "📦 **Доступные навыки:**\n\n"
-    for skill, enabled in config.items():
-        status = "🟢" if enabled else "🔴"
-        output += f"{status} {skill}\n"
-    return output
-
-def help_skills():
-    return """
-📦 **Навыки Джарвиса:**
-
-| Команда | Описание |
-|---------|----------|
-| `!команда` | Выполнить shell команду |
-| `@cat /путь/файла` | Показать содержимое файла |
-| `@write /путь || текст` | Записать текст в файл |
-| `погода в Москве` | Показать погоду |
-| `найди что-то` | Поиск в интернете |
-| `напомни текст через 5 мин` | Напоминание |
-
-**Управление (только админ):**
-`/skills` — список навыков
-`/skill on system` — включить навык
-`/skill off system` — выключить навык
-"""
+def get_base_skills_list():
+    return ["system", "file", "weather", "search", "reminder"]
 EOF
-
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_SCRIPT
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/base.py
 }
 
 # ============================================
-# СОЗДАНИЕ СКРИПТА БОТА
+# СОЗДАНИЕ GOOGLE НАВЫКОВ
+# ============================================
+create_google_skills() {
+    cat > $SKILLS_DIR/google.py << 'EOF'
+#!/usr/bin/env python3
+import os
+import pickle
+import base64
+import re
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+
+SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/contacts.readonly',
+    'https://www.googleapis.com/auth/spreadsheets.readonly'
+]
+
+TOKEN_FILE = '/opt/jarvis/token.pickle'
+CREDS_FILE = '/opt/jarvis/credentials.json'
+
+def get_google_creds():
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        elif os.path.exists(CREDS_FILE):
+            flow = InstalledAppFlow.from_client_secrets_file(CREDS_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        else:
+            return None
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+    return creds
+
+def google_search_emails(query, max_results=5):
+    creds = get_google_creds()
+    if not creds:
+        return "❌ Google не настроен. Поместите credentials.json в /opt/jarvis/"
+    service = build('gmail', 'v1', credentials=creds)
+    results = service.users().messages().list(userId='me', q=query, maxResults=max_results).execute()
+    emails = []
+    for msg in results.get('messages', []):
+        msg_data = service.users().messages().get(userId='me', id=msg['id']).execute()
+        emails.append(msg_data.get('snippet', ''))
+    return '\n'.join(emails) if emails else "❌ Писем не найдено"
+
+def google_send_email(to, subject, body):
+    creds = get_google_creds()
+    if not creds:
+        return "❌ Google не настроен"
+    service = build('gmail', 'v1', credentials=creds)
+    message = {
+        'raw': base64.urlsafe_b64encode(f"To: {to}\nSubject: {subject}\n\n{body}".encode()).decode()
+    }
+    service.users().messages().send(userId='me', body=message).execute()
+    return f"✅ Письмо отправлено на {to}"
+
+def google_get_calendar_events(max_results=10):
+    creds = get_google_creds()
+    if not creds:
+        return "❌ Google не настроен"
+    service = build('calendar', 'v3', credentials=creds)
+    events = service.events().list(calendarId='primary', maxResults=max_results).execute()
+    output = "📅 **Ближайшие события:**\n\n"
+    for event in events.get('items', []):
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        output += f"• {event['summary']} — {start}\n"
+    return output if output != "📅 **Ближайшие события:**\n\n" else "📭 Нет ближайших событий"
+
+def google_create_calendar_event(summary, start_time):
+    creds = get_google_creds()
+    if not creds:
+        return "❌ Google не настроен"
+    service = build('calendar', 'v3', credentials=creds)
+    event = {
+        'summary': summary,
+        'start': {'dateTime': start_time, 'timeZone': 'Europe/Moscow'},
+        'end': {'dateTime': start_time, 'timeZone': 'Europe/Moscow'},
+    }
+    event = service.events().insert(calendarId='primary', body=event).execute()
+    return f"✅ Событие создано: {event.get('htmlLink')}"
+
+def google_search_contacts(name):
+    creds = get_google_creds()
+    if not creds:
+        return "❌ Google не настроен"
+    service = build('people', 'v1', credentials=creds)
+    results = service.people().searchContacts(query=name, readMask='names,emailAddresses,phoneNumbers').execute()
+    output = f"📇 **Контакты по запросу '{name}':**\n\n"
+    for person in results.get('results', []):
+        names = person['person'].get('names', [{}])[0].get('displayName', '')
+        emails = person['person'].get('emailAddresses', [{}])[0].get('value', '')
+        phones = person['person'].get('phoneNumbers', [{}])[0].get('value', '')
+        output += f"• {names}\n  📧 {emails}\n  📞 {phones}\n\n"
+    return output if output != f"📇 **Контакты по запросу '{name}':**\n\n" else "❌ Контакты не найдены"
+
+def process_google_skills(text, user_id):
+    text_lower = text.lower()
+    if 'почта от' in text_lower:
+        query = text_lower.replace('почта от', '').strip()
+        return google_search_emails(query)
+    if text_lower.startswith('отправить письмо '):
+        parts = text[17:].split(' тема: ', 1)
+        if len(parts) == 2:
+            to = parts[0].strip()
+            rest = parts[1].split(' текст: ', 1)
+            if len(rest) == 2:
+                subject = rest[0].strip()
+                body = rest[1].strip()
+                return google_send_email(to, subject, body)
+    if 'встреча' in text_lower:
+        match = re.search(r'встреча\s+(.+?)\s+(.+)', text)
+        if match:
+            summary = match.group(1)
+            time = match.group(2)
+            return google_create_calendar_event(summary, time)
+    if 'календарь' in text_lower:
+        return google_get_calendar_events()
+    if 'контакт' in text_lower:
+        name = text_lower.replace('контакт', '').strip()
+        return google_search_contacts(name)
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/google.py
+}
+
+# ============================================
+# СОЗДАНИЕ GITHUB НАВЫКОВ
+# ============================================
+create_github_skills() {
+    cat > $SKILLS_DIR/github.py << 'EOF'
+#!/usr/bin/env python3
+import requests
+import os
+
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
+
+def github_request(endpoint, method='GET', data=None):
+    headers = {'Authorization': f'token {GITHUB_TOKEN}'} if GITHUB_TOKEN else {}
+    url = f'https://api.github.com{endpoint}'
+    if method == 'GET':
+        response = requests.get(url, headers=headers)
+    else:
+        response = requests.post(url, headers=headers, json=data)
+    return response.json() if response.status_code == 200 else None
+
+def github_list_repos(user):
+    repos = github_request(f'/users/{user}/repos')
+    if repos:
+        output = f"📁 **Репозитории {user}:**\n\n"
+        for repo in repos[:10]:
+            output += f"• [{repo['name']}]({repo['html_url']}) - {repo['description'] or 'нет описания'}\n"
+        return output
+    return "❌ Не удалось получить репозитории"
+
+def github_create_issue(repo, title, body):
+    result = github_request(f'/repos/{repo}/issues', 'POST', {'title': title, 'body': body})
+    if result and 'html_url' in result:
+        return f"✅ Issue создан: {result['html_url']}"
+    return "❌ Ошибка создания issue"
+
+def process_github_skills(text, user_id):
+    text_lower = text.lower()
+    if text_lower.startswith('репозитории '):
+        user = text_lower.replace('репозитории ', '').strip()
+        return github_list_repos(user)
+    if text_lower.startswith('создать issue '):
+        parts = text[14:].split(' || ', 1)
+        if len(parts) == 2:
+            repo = parts[0].strip()
+            rest = parts[1].split(' || ', 1)
+            if len(rest) == 2:
+                title = rest[0].strip()
+                body = rest[1].strip()
+                return github_create_issue(repo, title, body)
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/github.py
+}
+
+# ============================================
+# СОЗДАНИЕ CRYPTO НАВЫКОВ
+# ============================================
+create_crypto_skills() {
+    cat > $SKILLS_DIR/crypto.py << 'EOF'
+#!/usr/bin/env python3
+import requests
+
+def get_crypto_price(coin='bitcoin'):
+    try:
+        response = requests.get(f'https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd,rub', timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            price_usd = data.get(coin, {}).get('usd', 0)
+            price_rub = data.get(coin, {}).get('rub', 0)
+            return f"💰 {coin.upper()}: ${price_usd:,.2f} / ₽{price_rub:,.2f}"
+        return "❌ Не удалось получить курс"
+    except:
+        return "❌ Ошибка подключения"
+
+def get_currency_rate(currency='usd'):
+    try:
+        response = requests.get('https://api.exchangerate-api.com/v4/latest/USD', timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            rate = data.get('rates', {}).get(currency.upper(), 0)
+            return f"💵 USD/{currency.upper()}: {rate:.2f}"
+        return "❌ Не удалось получить курс"
+    except:
+        return "❌ Ошибка подключения"
+
+def process_crypto_skills(text, user_id):
+    text_lower = text.lower()
+    if 'биткоин' in text_lower or 'bitcoin' in text_lower or 'btc' in text_lower:
+        return get_crypto_price('bitcoin')
+    if 'эфир' in text_lower or 'ethereum' in text_lower or 'eth' in text_lower:
+        return get_crypto_price('ethereum')
+    if 'курс доллара' in text_lower or 'usd' in text_lower:
+        return get_currency_rate('rub')
+    if 'курс евро' in text_lower or 'eur' in text_lower:
+        return get_currency_rate('rub')
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/crypto.py
+}
+
+# ============================================
+# СОЗДАНИЕ WEATHER НАВЫКОВ
+# ============================================
+create_weather_skills() {
+    cat > $SKILLS_DIR/weather.py << 'EOF'
+#!/usr/bin/env python3
+import requests
+import re
+
+def get_weather_forecast(city="Moscow", days=3):
+    try:
+        response = requests.get(f"https://wttr.in/{city}?format=%C+%t+%w&m", timeout=10)
+        if response.status_code == 200:
+            return f"🌤️ {city}: {response.text.strip()}"
+        return f"❌ Не удалось получить погоду для {city}"
+    except:
+        return "❌ Ошибка подключения"
+
+def get_news(query=None):
+    try:
+        url = "https://newsapi.org/v2/top-headlines?country=ru&pageSize=5"
+        if query:
+            url = f"https://newsapi.org/v2/everything?q={query}&pageSize=5"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            output = f"📰 **Новости{' по запросу ' + query if query else ''}:**\n\n"
+            for article in data.get('articles', []):
+                output += f"• {article['title']}\n  {article['url']}\n\n"
+            return output
+        return "❌ Не удалось получить новости"
+    except:
+        return "❌ Ошибка подключения"
+
+def process_weather_skills(text, user_id):
+    text_lower = text.lower()
+    if 'погода' in text_lower or 'weather' in text_lower:
+        city_match = re.search(r'(?:в|in)\s+([A-Za-zА-Яа-я-]+)', text)
+        city = city_match.group(1) if city_match else "Moscow"
+        return get_weather_forecast(city)
+    if 'новости' in text_lower or 'news' in text_lower:
+        query = text_lower.replace('новости', '').replace('news', '').strip()
+        return get_news(query if query else None)
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/weather.py
+}
+
+# ============================================
+# СОЗДАНИЕ TELEGRAM УПРАВЛЕНИЯ
+# ============================================
+create_telegram_skills() {
+    cat > $SKILLS_DIR/telegram.py << 'EOF'
+#!/usr/bin/env python3
+import json
+import os
+
+CONFIG_FILE = "/opt/jarvis/config.env"
+
+def add_telegram_user(user_id, chat_id):
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            lines = f.readlines()
+        for i, line in enumerate(lines):
+            if line.startswith("ALLOWED_USERS="):
+                current = line.split('=')[1].strip().strip('"')
+                if user_id not in current:
+                    lines[i] = f'ALLOWED_USERS="{current} {user_id}"\n'
+                    with open(CONFIG_FILE, 'w') as f:
+                        f.writelines(lines)
+                    return f"✅ Пользователь {user_id} добавлен"
+                return f"👤 Пользователь {user_id} уже в списке"
+        return "❌ Не удалось обновить конфиг"
+    except Exception as e:
+        return f"❌ Ошибка: {e}"
+
+def remove_telegram_user(user_id):
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            lines = f.readlines()
+        for i, line in enumerate(lines):
+            if line.startswith("ALLOWED_USERS="):
+                current = line.split('=')[1].strip().strip('"')
+                new = ' '.join([u for u in current.split() if u != user_id])
+                lines[i] = f'ALLOWED_USERS="{new}"\n'
+                with open(CONFIG_FILE, 'w') as f:
+                    f.writelines(lines)
+                return f"✅ Пользователь {user_id} удалён"
+        return "❌ Не удалось обновить конфиг"
+    except Exception as e:
+        return f"❌ Ошибка: {e}"
+
+def process_telegram_skills(text, user_id, is_admin):
+    if not is_admin:
+        return None
+    text_lower = text.lower()
+    if text_lower.startswith('adduser '):
+        new_user = text_lower.replace('adduser ', '').strip()
+        return add_telegram_user(new_user, None)
+    if text_lower.startswith('deluser '):
+        del_user = text_lower.replace('deluser ', '').strip()
+        return remove_telegram_user(del_user)
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/telegram.py
+}
+
+# ============================================
+# СОЗДАНИЕ АДАПТЕРОВ CLAWHUB
+# ============================================
+create_self_improving_adapter() {
+    cat > $SKILLS_DIR/self_improving.py << 'EOF'
+#!/usr/bin/env python3
+import json
+import os
+import sqlite3
+from datetime import datetime
+
+DB_PATH = "/opt/jarvis/clawhub_skills/self_improving.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS learnings
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  user_question TEXT,
+                  bot_answer TEXT,
+                  user_correction TEXT,
+                  improved_answer TEXT,
+                  created_at TEXT)''')
+    conn.commit()
+    conn.close()
+
+def save_learning(question, answer, correction, improved):
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO learnings (user_question, bot_answer, user_correction, improved_answer, created_at) VALUES (?, ?, ?, ?, ?)",
+              (question, answer, correction, improved, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+def get_improved_answer(question):
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT improved_answer FROM learnings WHERE user_question LIKE ? ORDER BY created_at DESC LIMIT 1",
+              (f'%{question}%',))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def process_self_improving(text, user_id):
+    text_lower = text.lower()
+    if text_lower.startswith('запомни '):
+        parts = text[8:].split(' || ', 1)
+        if len(parts) == 2:
+            question = parts[0].strip()
+            answer = parts[1].strip()
+            save_learning(question, "", "", answer)
+            return f"✅ Запомнил: {question} -> {answer}"
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/self_improving.py
+}
+
+create_api_gateway_adapter() {
+    cat > $SKILLS_DIR/api_gateway.py << 'EOF'
+#!/usr/bin/env python3
+import requests
+import json
+import os
+
+CONFIG_FILE = "/opt/jarvis/clawhub_skills/api_config.json"
+
+def load_api_config():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_api_config(config):
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
+
+def call_api(service, endpoint, method='GET', data=None):
+    config = load_api_config()
+    if service not in config:
+        return f"❌ Сервис {service} не настроен. Используйте /setup_api {service}"
+
+    base_url = config[service].get('base_url')
+    api_key = config[service].get('api_key')
+    
+    headers = {'Authorization': f'Bearer {api_key}'} if api_key else {}
+    
+    try:
+        if method == 'GET':
+            response = requests.get(f"{base_url}{endpoint}", headers=headers, timeout=30)
+        else:
+            response = requests.post(f"{base_url}{endpoint}", headers=headers, json=data, timeout=30)
+        return response.json() if response.status_code == 200 else f"❌ Ошибка API: {response.status_code}"
+    except Exception as e:
+        return f"❌ Ошибка: {e}"
+
+def process_api_gateway(text, user_id):
+    text_lower = text.lower()
+    if text_lower.startswith('api '):
+        parts = text[4:].split(' ', 2)
+        if len(parts) >= 2:
+            service = parts[0]
+            endpoint = parts[1]
+            return call_api(service, endpoint)
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/api_gateway.py
+}
+
+create_browser_adapter() {
+    cat > $SKILLS_DIR/agent_browser.py << 'EOF'
+#!/usr/bin/env python3
+import subprocess
+import json
+
+def browser_navigate(url):
+    try:
+        result = subprocess.run(['curl', '-s', '-L', url], capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            content = result.stdout[:2000]
+            return f"🌐 {url}\n\n{content[:1000]}..."
+        return "❌ Ошибка загрузки страницы"
+    except Exception as e:
+        return f"❌ Ошибка браузера: {e}"
+
+def process_browser_skills(text, user_id):
+    text_lower = text.lower()
+    if text_lower.startswith('открыть '):
+        url = text[8:].strip()
+        if not url.startswith('http'):
+            url = 'https://' + url
+        return browser_navigate(url)
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/agent_browser.py
+}
+
+create_excel_adapter() {
+    cat > $SKILLS_DIR/excel.py << 'EOF'
+#!/usr/bin/env python3
+import pandas as pd
+import os
+
+def excel_read(file_path, sheet_name=0):
+    try:
+        if not os.path.exists(file_path):
+            return f"❌ Файл {file_path} не найден"
+        df = pd.read_excel(file_path, sheet_name=sheet_name)
+        return df.head(20).to_string()
+    except Exception as e:
+        return f"❌ Ошибка чтения Excel: {e}"
+
+def excel_create(file_path, data):
+    try:
+        df = pd.DataFrame(data)
+        df.to_excel(file_path, index=False)
+        return f"✅ Файл {file_path} создан"
+    except Exception as e:
+        return f"❌ Ошибка создания Excel: {e}"
+
+def process_excel_skills(text, user_id):
+    text_lower = text.lower()
+    if text_lower.startswith('excel '):
+        parts = text[6:].split(' ', 1)
+        if parts[0] == 'read' and len(parts) > 1:
+            return excel_read(parts[1])
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/excel.py
+}
+
+create_word_adapter() {
+    cat > $SKILLS_DIR/word.py << 'EOF'
+#!/usr/bin/env python3
+import os
+import docx
+
+def word_read(file_path):
+    try:
+        if not os.path.exists(file_path):
+            return f"❌ Файл {file_path} не найден"
+        doc = docx.Document(file_path)
+        text = []
+        for para in doc.paragraphs[:50]:
+            text.append(para.text)
+        return '\n'.join(text) if text else "(документ пуст)"
+    except Exception as e:
+        return f"❌ Ошибка чтения Word: {e}"
+
+def process_word_skills(text, user_id):
+    text_lower = text.lower()
+    if text_lower.startswith('word read '):
+        path = text[10:].strip()
+        return word_read(path)
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/word.py
+}
+
+create_obsidian_adapter() {
+    cat > $SKILLS_DIR/obsidian.py << 'EOF'
+#!/usr/bin/env python3
+import os
+from datetime import datetime
+
+VAULT_PATH = "/opt/jarvis/clawhub_skills/obsidian_vault"
+
+def init_vault():
+    os.makedirs(VAULT_PATH, exist_ok=True)
+
+def create_note(title, content):
+    init_vault()
+    filename = f"{title.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+    filepath = os.path.join(VAULT_PATH, filename)
+    with open(filepath, 'w') as f:
+        f.write(f"# {title}\n\n{content}\n\nСоздано: {datetime.now()}")
+    return f"✅ Заметка создана: {filepath}"
+
+def process_obsidian_skills(text, user_id):
+    text_lower = text.lower()
+    if text_lower.startswith('obsidian заметка '):
+        content = text[17:].strip()
+        title = content[:50]
+        return create_note(title, content)
+    return None
+EOF
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/obsidian.py
+}
+
+# ============================================
+# УСТАНОВКА CLAWHUB НАВЫКОВ
+# ============================================
+install_clawhub_skills() {
+    show_clawhub_skills
+    
+    SELECTED=$(cat /tmp/clawhub_selected)
+    
+    # Создаём директорию для ClawHub
+    mkdir -p $JARVIS_DIR/clawhub_skills
+    
+    for num in $SELECTED; do
+        case $num in
+            1) create_self_improving_adapter; print_success "  ✅ self-improving-agent установлен" ;;
+            2) print_info "  ⏳ ontology (граф знаний) - требует дополнительной настройки";;
+            3) create_api_gateway_adapter; print_success "  ✅ API Gateway установлен" ;;
+            4) create_browser_adapter; print_success "  ✅ Agent Browser установлен" ;;
+            5) create_obsidian_adapter; print_success "  ✅ Obsidian установлен" ;;
+            6) create_word_adapter; print_success "  ✅ Word / DOCX установлен" ;;
+            7) create_excel_adapter; print_success "  ✅ Excel / XLSX установлен" ;;
+            8) print_info "  ⏳ Mcporter - требует дополнительной настройки";;
+            9) print_info "  ⏳ Baidu Search - требует API ключ";;
+        esac
+    done
+    
+    # Установка Python зависимостей для навыков
+    if [[ "$SELECTED" == *"6"* ]] || [[ "$SELECTED" == *"7"* ]]; then
+        print_info "Установка дополнительных Python библиотек..."
+        sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install --quiet pandas openpyxl python-docx
+    fi
+    
+    print_success "Навыки ClawHub установлены!"
+    pause
+}
+
+# ============================================
+# СОЗДАНИЕ ОСНОВНОГО БОТА
 # ============================================
 create_bot_script() {
     cat > $BOT_SCRIPT << 'EOF'
@@ -340,13 +1120,13 @@ import json
 import requests
 import base64
 import subprocess
-import asyncio
-from datetime import datetime
+import importlib
+import importlib.util
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import skills
 
 CONFIG_FILE = "/opt/jarvis/config.env"
+SKILLS_DIR = "/opt/jarvis/skills"
 
 def load_config():
     config = {}
@@ -366,6 +1146,22 @@ OLLAMA_URL = config.get("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 USE_OPENAI = config.get("USE_OPENAI", "false") == "true"
 OPENAI_KEY = config.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = config.get("OPENAI_MODEL", "gpt-4o-mini")
+
+# Загрузка всех навыков
+skills_modules = {}
+skills_config = {"system": True, "file": True, "weather": True, "search": True, "reminder": True}
+
+if os.path.exists(SKILLS_DIR):
+    for f in os.listdir(SKILLS_DIR):
+        if f.endswith('.py') and f != '__init__.py':
+            module_name = f[:-3]
+            try:
+                spec = importlib.util.spec_from_file_location(f"skills.{module_name}", os.path.join(SKILLS_DIR, f))
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                skills_modules[module_name] = module
+            except Exception as e:
+                print(f"Ошибка загрузки {module_name}: {e}")
 
 def is_vision_model(model_name):
     vision_models = ["llava", "bakllava", "moondream", "qwen3-vl", "gemma3", "minicpm-v", "cogvlm", "qwen2.5vl", "video-llava", "internvl2", "llava-next", "granite3.2-vision"]
@@ -389,15 +1185,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(skills.help_skills())
-
-async def model_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
-    if user_id not in ALLOWED_USERS:
-        return
     await update.message.reply_text(
-        f"🤖 **Модель:** `{MODEL}`\n"
-        f"🖼️ Vision: {'✅' if is_vision_model(MODEL) else '❌'}",
+        "📦 **Навыки Джарвиса:**\n\n"
+        "| Команда | Описание |\n"
+        "|---------|----------|\n"
+        "| `!команда` | Выполнить shell команду |\n"
+        "| `@cat /путь` | Показать содержимое файла |\n"
+        "| `@write /путь || текст` | Записать текст в файл |\n"
+        "| `погода в Москве` | Показать погоду |\n"
+        "| `найди что-то` | Поиск в интернете |\n"
+        "| `напомни текст через 5 мин` | Напоминание |\n\n"
+        "**Управление:** `/skills` — список навыков\n"
+        "`/skill on/off название` — включить/выключить навык",
         parse_mode="Markdown"
     )
 
@@ -405,7 +1204,12 @@ async def skills_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in ALLOWED_USERS:
         return
-    await update.message.reply_text(skills.list_skills(), parse_mode="Markdown")
+    output = "📦 **Доступные навыки:**\n\n"
+    for module_name, module in skills_modules.items():
+        if hasattr(module, 'get_base_skills_list'):
+            for skill in module.get_base_skills_list():
+                output += f"• {skill}\n"
+    await update.message.reply_text(output, parse_mode="Markdown")
 
 async def skill_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -417,12 +1221,13 @@ async def skill_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action = context.args[0].lower()
     skill_name = context.args[1].lower()
     if action == "on":
-        result = skills.toggle_skill(skill_name, True)
+        skills_config[skill_name] = True
+        await update.message.reply_text(f"✅ Навык '{skill_name}' включён")
     elif action == "off":
-        result = skills.toggle_skill(skill_name, False)
+        skills_config[skill_name] = False
+        await update.message.reply_text(f"✅ Навык '{skill_name}' отключён")
     else:
-        result = "❌ Используйте on или off"
-    await update.message.reply_text(result)
+        await update.message.reply_text("❌ Используйте on или off")
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -489,13 +1294,72 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     user_text = update.message.text
-    skills_config = skills.load_skills_config()
+    is_admin = user_id == ALLOWED_USERS[0] if ALLOWED_USERS else False
     
-    skill_result = skills.process_skills(user_text, user_id, skills_config)
-    if skill_result:
-        await update.message.reply_text(skill_result)
-        return
+    # Проверка навыков
+    for module_name, module in skills_modules.items():
+        if hasattr(module, 'process_skills'):
+            result = module.process_skills(user_text, user_id, skills_config)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_google_skills'):
+            result = module.process_google_skills(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_github_skills'):
+            result = module.process_github_skills(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_crypto_skills'):
+            result = module.process_crypto_skills(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_weather_skills'):
+            result = module.process_weather_skills(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_telegram_skills'):
+            result = module.process_telegram_skills(user_text, user_id, is_admin)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_self_improving'):
+            result = module.process_self_improving(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_api_gateway'):
+            result = module.process_api_gateway(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_browser_skills'):
+            result = module.process_browser_skills(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_excel_skills'):
+            result = module.process_excel_skills(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_word_skills'):
+            result = module.process_word_skills(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
+        if hasattr(module, 'process_obsidian_skills'):
+            result = module.process_obsidian_skills(user_text, user_id)
+            if result:
+                await update.message.reply_text(result)
+                return
     
+    # Обычный диалог с ИИ
     await update.message.reply_chat_action("typing")
     try:
         if USE_OPENAI and OPENAI_KEY:
@@ -548,7 +1412,6 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_cmd))
-    app.add_handler(CommandHandler("model", model_cmd))
     app.add_handler(CommandHandler("skills", skills_list))
     app.add_handler(CommandHandler("skill", skill_toggle))
     app.add_handler(CommandHandler("status", status_cmd))
@@ -557,12 +1420,12 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     print(f"🦞 Джарвис запущен! Модель: {MODEL}")
+    print(f"📦 Загружено модулей навыков: {len(skills_modules)}")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
 EOF
-
     chown $JARVIS_USER:$JARVIS_USER $BOT_SCRIPT
 }
 
@@ -591,7 +1454,7 @@ EOF
 }
 
 # ============================================
-# ФУНКЦИЯ УСТАНОВКИ
+# УСТАНОВКА
 # ============================================
 install_jarvis() {
     clear
@@ -702,6 +1565,26 @@ install_jarvis() {
         USE_OPENAI="false"
     fi
 
+    # НАСТРОЙКА ВРЕМЕНИ
+    configure_time
+
+    # Выбор провайдеров навыков
+    select_skills
+    
+    # ClawHub навыки
+    echo ""
+    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│                    🦞 CLAWHUB НАВЫКИ                        │${NC}"
+    echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│ Навыки из ClawHub — готовые расширения для ИИ:                     │"
+    echo -e "│ - самообучение, граф знаний, 100+ API, браузер, Excel, Word и др. │"
+    echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    read -p "👉 Установить навыки из ClawHub? (y/N): " install_clawhub
+    if [[ "$install_clawhub" == "y" || "$install_clawhub" == "Y" ]]; then
+        install_clawhub_skills
+    fi
+    
     # Подтверждение
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -712,6 +1595,8 @@ install_jarvis() {
     echo -e "🧠 Модель: ${GREEN}$MODEL${NC}"
     echo -e "👥 Доп. пользователи: ${GREEN}${EXTRA_USERS:-нет}${NC}"
     echo -e "🤖 ChatGPT API: ${GREEN}$USE_OPENAI${NC}"
+    echo -e "📦 Выбранные навыки: ${GREEN}$(cat /tmp/selected_skills)${NC}"
+    echo -e "🕐 Часовой пояс: ${GREEN}$(cat /etc/timezone 2>/dev/null || echo "не задан")${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     read -p "👉 Начать установку? (y/N): " confirm
@@ -740,9 +1625,10 @@ install_jarvis() {
     fi
 
     id "$JARVIS_USER" &>/dev/null || useradd -m -s /usr/sbin/nologin $JARVIS_USER
-    mkdir -p $JARVIS_DIR
-    chown $JARVIS_USER:$JARVIS_USER $JARVIS_DIR
+    mkdir -p $JARVIS_DIR $SKILLS_DIR $JARVIS_DIR/clawhub_skills
+    chown $JARVIS_USER:$JARVIS_USER $JARVIS_DIR $SKILLS_DIR $JARVIS_DIR/clawhub_skills
 
+    # Создание конфига
     cat > $CONFIG_FILE << EOF
 BOT_TOKEN="$BOT_TOKEN"
 MODEL="$MODEL"
@@ -755,14 +1641,32 @@ EOF
         echo "OPENAI_MODEL=\"$OPENAI_MODEL\"" >> $CONFIG_FILE
     fi
 
-    create_skills_script
+    # Создание навыков
+    print_info "Создание навыков..."
+    create_base_skills
+    
+    SELECTED=$(cat /tmp/selected_skills)
+    for skill in $SELECTED; do
+        case $skill in
+            google) create_google_skills; print_info "  ✅ Google навыки" ;;
+            github) create_github_skills; print_info "  ✅ GitHub навыки" ;;
+            crypto) create_crypto_skills; print_info "  ✅ Crypto навыки" ;;
+            weather) create_weather_skills; print_info "  ✅ Weather навыки" ;;
+            telegram) create_telegram_skills; print_info "  ✅ Telegram навыки" ;;
+        esac
+    done
+
+    # Создание бота
     create_bot_script
-    chmod +x $BOT_SCRIPT $SKILLS_SCRIPT
+    chmod +x $BOT_SCRIPT
     chown -R $JARVIS_USER:$JARVIS_USER $JARVIS_DIR
 
+    # Виртуальное окружение
+    print_info "Настройка Python окружения..."
     sudo -u $JARVIS_USER python3 -m venv $JARVIS_DIR/venv
-    sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install --quiet python-telegram-bot requests pillow
+    sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install --quiet python-telegram-bot requests pillow pandas openpyxl python-docx google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
+    # Systemd сервис
     create_systemd_service
     systemctl daemon-reload
     systemctl enable jarvis-bot
@@ -809,6 +1713,8 @@ show_menu() {
     echo -e "  ${CYAN}10)${NC}  Запустить бота"
     echo -e "  ${CYAN}11)${NC}  Статус бота"
     echo -e "  ${CYAN}12)${NC}  Показать логи"
+    echo -e "  ${MAGENTA}13)${NC}  📦 Установить навыки из ClawHub"
+    echo -e "  ${MAGENTA}14)${NC}  🕐 Настройка времени и NTP"
     echo ""
     echo -e "  ${RED} 0)${NC}  Выход"
     echo ""
@@ -880,6 +1786,8 @@ while true; do
         10) systemctl start jarvis-bot && print_success "Бот запущен"; pause ;;
         11) systemctl status jarvis-bot; pause ;;
         12) journalctl -u jarvis-bot -f ;;
+        13) install_clawhub_skills ;;
+        14) configure_time ;;
         0) exit 0 ;;
         *) print_warning "Неверный выбор"; pause ;;
     esac
