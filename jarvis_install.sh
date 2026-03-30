@@ -2,8 +2,7 @@
 
 # ============================================
 # Джарвис - универсальный установщик Telegram бота
-# Поддерживает: текстовые, мультимодальные, аудио модели
-# Версия: 3.0
+# Версия: 4.0 - с навыками (skills)
 # ============================================
 
 set -e
@@ -22,8 +21,10 @@ BOLD='\033[1m'
 JARVIS_DIR="/opt/jarvis"
 JARVIS_USER="jarvis"
 BOT_SCRIPT="$JARVIS_DIR/jarvis_bot.py"
+SKILLS_SCRIPT="$JARVIS_DIR/skills.py"
 SERVICE_FILE="/etc/systemd/system/jarvis-bot.service"
 CONFIG_FILE="$JARVIS_DIR/config.env"
+SKILLS_CONFIG="$JARVIS_DIR/skills_config.json"
 
 # Функции вывода
 print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
@@ -36,157 +37,299 @@ pause() {
     read -p "Нажмите Enter для продолжения..."
 }
 
-get_server_ip() {
-    ipv4=$(curl -4 -s ifconfig.me 2>/dev/null || curl -4 -s icanhazip.com 2>/dev/null)
-    if [[ -n "$ipv4" && "$ipv4" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "$ipv4"
-    else
-        echo "IP_НЕ_ОПРЕДЕЛЕН"
-    fi
-}
-
-# ============================================
-# Функция установки
-# ============================================
-install_jarvis() {
-    clear
-    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}${BOLD}           🦞 УСТАНОВКА ДЖАРВИСА 🦞${NC}"
-    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
-
-    if [ "$EUID" -ne 0 ]; then 
-        print_error "Запустите скрипт от root (sudo ./jarvis_install.sh)"
-        exit 1
-    fi
-
-    # Сбор информации
-    echo ""
-    print_info "Для настройки Джарвиса нужны следующие данные:"
-    echo ""
-    
-    read -p "Введите токен Telegram бота (от @BotFather): " BOT_TOKEN
-    while [ -z "$BOT_TOKEN" ]; do
-        print_error "Токен не может быть пустым!"
-        read -p "Введите токен Telegram бота: " BOT_TOKEN
-    done
-    
-    read -p "Введите ваш Chat ID (можно узнать у @userinfobot): " CHAT_ID
-    while [ -z "$CHAT_ID" ]; do
-        print_error "Chat ID не может быть пустым!"
-        read -p "Введите ваш Chat ID: " CHAT_ID
-    done
-    
-    # Выбор модели
-    echo ""
-    echo "Выберите модель:"
-    echo "  1) qwen2.5:1.5b  - быстрая, 1GB (рекомендуется для начала)"
-    echo "  2) llama3.2:3b    - быстрая, 2GB"
-    echo "  3) qwen2.5:7b     - умная, 4.5GB"
-    echo "  4) deepseek-r1:7b - reasoning, 4.7GB"
-    echo "  5) llava:7b       - видит изображения, 4.5GB"
-    echo "  6) Показать все модели (44 варианта)"
-    echo "  7) Своя модель"
-    read -p "Выберите [1-7]: " MODEL_CHOICE
-    
-    case $MODEL_CHOICE in
-        1) MODEL="qwen2.5:1.5b" ;;
-        2) MODEL="llama3.2:3b" ;;
-        3) MODEL="qwen2.5:7b" ;;
-        4) MODEL="deepseek-r1:7b" ;;
-        5) MODEL="llava:7b" ;;
-        6) show_all_models ;;
-        7) read -p "Введите название модели: " MODEL ;;
-        *) MODEL="qwen2.5:1.5b" ;;
+get_model_by_number() {
+    case $1 in
+        1) echo "deepseek-r1:7b" ;;
+        2) echo "deepseek-r1:8b" ;;
+        3) echo "qwq:32b" ;;
+        4) echo "qwen3:8b" ;;
+        5) echo "qwen3:14b" ;;
+        6) echo "qwen2.5:7b" ;;
+        7) echo "llama3.3:70b" ;;
+        8) echo "gpt-oss:20b" ;;
+        9) echo "gpt-oss:120b" ;;
+        10) echo "deepseek-coder:6.7b" ;;
+        11) echo "qwen2.5-coder:7b" ;;
+        12) echo "qwen2.5:1.5b" ;;
+        13) echo "llama3.2:3b" ;;
+        14) echo "phi3:3.8b" ;;
+        15) echo "llava:7b" ;;
+        16) echo "llava-phi3:3.8b" ;;
+        17) echo "moondream:1.8b" ;;
+        18) echo "qwen3-vl:8b" ;;
+        19) echo "gemma3:12b-vision" ;;
+        20) echo "minicpm-v:8b" ;;
+        21) echo "deepseek-ocr:3b" ;;
+        22) echo "cogvlm:17b" ;;
+        23) echo "bakllava:7b" ;;
+        24) echo "llava-llama3:8b" ;;
+        25) echo "granite3.2-vision:2b" ;;
+        26) echo "qwen2.5vl:7b" ;;
+        27) echo "qwen2.5vl:32b" ;;
+        28) echo "whisper:tiny" ;;
+        29) echo "whisper:small" ;;
+        30) echo "whisper:medium" ;;
+        31) echo "whisper:large" ;;
+        32) echo "video-llava:7b" ;;
+        33) echo "internvl2:8b" ;;
+        34) echo "llava-next:7b" ;;
+        *) echo "qwen2.5:1.5b" ;;
     esac
-    
-    read -p "Введите дополнительных пользователей (Chat ID через пробел, или оставьте пустым): " EXTRA_USERS
-    
-    echo ""
-    print_info "Начинаю установку..."
-    
-    # Обновление системы
-    print_info "Обновление системы..."
-    apt update && apt upgrade -y
-    
-    # Установка зависимостей
-    print_info "Установка зависимостей..."
-    apt install -y curl git wget python3 python3-pip python3-venv ufw ffmpeg
-    
-    # Установка Ollama
-    if ! command -v ollama &> /dev/null; then
-        print_info "Установка Ollama..."
-        curl -fsSL https://ollama.com/install.sh | sh
-    else
-        print_success "Ollama уже установлен"
-    fi
-    
-    # Загрузка модели
-    print_info "Загрузка модели $MODEL (может занять несколько минут)..."
-    ollama pull $MODEL
-    
-    # Создание пользователя
-    if id "$JARVIS_USER" &>/dev/null; then
-        print_info "Пользователь $JARVIS_USER уже существует"
-    else
-        useradd -m -s /usr/sbin/nologin $JARVIS_USER
-        print_success "Пользователь $JARVIS_USER создан"
-    fi
-    
-    # Создание директории
-    mkdir -p $JARVIS_DIR
-    chown $JARVIS_USER:$JARVIS_USER $JARVIS_DIR
-    
-    # Создание конфигурации
-    print_info "Создание конфигурации..."
-    cat > $CONFIG_FILE << EOF
-# Конфигурация Джарвиса
-BOT_TOKEN="$BOT_TOKEN"
-MODEL="$MODEL"
-ALLOWED_USERS="$CHAT_ID $EXTRA_USERS"
-OLLAMA_URL="http://127.0.0.1:11434/api/generate"
-EOF
-    
-    # Создание скрипта бота
-    print_info "Создание скрипта бота..."
-    create_bot_script
-    
-    # Настройка прав
-    chmod +x $BOT_SCRIPT
-    chown -R $JARVIS_USER:$JARVIS_USER $JARVIS_DIR
-    
-    # Создание виртуального окружения
-    print_info "Настройка Python окружения..."
-    sudo -u $JARVIS_USER python3 -m venv $JARVIS_DIR/venv
-    sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install --quiet python-telegram-bot requests pillow
-    
-    # Создание systemd сервиса
-    print_info "Создание systemd сервиса..."
-    create_systemd_service
-    
-    # Включение и запуск сервиса
-    systemctl daemon-reload
-    systemctl enable jarvis-bot
-    systemctl restart ollama
-    sleep 3
-    systemctl restart jarvis-bot
-    
-    print_success "Джарвис установлен и запущен!"
-    echo ""
-    echo "========================================="
-    echo "✅ Установка завершена!"
-    echo "========================================="
-    echo "🔹 Telegram бот: @$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getMe" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)"
-    echo "🔹 Статус: systemctl status jarvis-bot"
-    echo "🔹 Логи: journalctl -u jarvis-bot -f"
-    echo "🔹 Управление: $0 (запустите снова для меню)"
-    echo "========================================="
-    
-    pause
 }
 
 # ============================================
-# Создание скрипта бота
+# ПОКАЗ ВСЕХ МОДЕЛЕЙ
+# ============================================
+show_all_models() {
+    clear
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}${BOLD}                              📦 ДОСТУПНЫЕ МОДЕЛИ (44 варианта)                              ${NC}"
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  ${YELLOW}🧠 REASONING (думают вслух):${NC}"
+    echo -e "     1. deepseek-r1:7b       2. deepseek-r1:8b       3. qwq:32b"
+    echo ""
+    echo -e "  ${YELLOW}🏆 ТОПОВЫЕ ЛОКАЛЬНЫЕ:${NC}"
+    echo -e "     4. qwen3:8b             5. qwen3:14b            6. qwen2.5:7b"
+    echo -e "     7. llama3.3:70b         8. gpt-oss:20b          9. gpt-oss:120b"
+    echo ""
+    echo -e "  ${YELLOW}💻 КОД И ТЕХНИЧЕСКИЕ:${NC}"
+    echo -e "    10. deepseek-coder:6.7b  11. qwen2.5-coder:7b"
+    echo ""
+    echo -e "  ${YELLOW}⚡ ЛЁГКИЕ (для слабых серверов):${NC}"
+    echo -e "    12. qwen2.5:1.5b         13. llama3.2:3b         14. phi3:3.8b"
+    echo ""
+    echo -e "  ${YELLOW}🎨 МУЛЬТИМОДАЛЬНЫЕ (видят изображения):${NC}"
+    echo -e "    15. llava:7b             16. llava-phi3:3.8b     17. moondream:1.8b"
+    echo -e "    18. qwen3-vl:8b          19. gemma3:12b-vision   20. minicpm-v:8b"
+    echo -e "    21. deepseek-ocr:3b      22. cogvlm:17b          23. bakllava:7b"
+    echo -e "    24. llava-llama3:8b      25. granite3.2-vision   26. qwen2.5vl:7b"
+    echo -e "    27. qwen2.5vl:32b"
+    echo ""
+    echo -e "  ${YELLOW}🎵 АУДИО МОДЕЛИ (распознавание речи):${NC}"
+    echo -e "    28. whisper:tiny         29. whisper:small       30. whisper:medium"
+    echo -e "    31. whisper:large"
+    echo ""
+    echo -e "  ${YELLOW}🎥 ВИДЕО МОДЕЛИ:${NC}"
+    echo -e "    32. video-llava:7b       33. internvl2:8b        34. llava-next:7b"
+    echo ""
+    echo -e "  ${YELLOW}🤖 CHATGPT (платные варианты):${NC}"
+    echo -e "    35. ChatGPT (OpenAI API)       - 💰 платный API"
+    echo -e "    36. ChatGPT (ChatMock)         - 💰 требует ChatGPT Plus"
+    echo -e "    37. ChatGPT (GPT-OSS)          - ✅ бесплатно, локально"
+    echo ""
+    echo -e "  ${YELLOW}🔧 38. Своя модель${NC}"
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# ============================================
+# СОЗДАНИЕ СКРИПТА НАВЫКОВ
+# ============================================
+create_skills_script() {
+    cat > $SKILLS_SCRIPT << 'EOF'
+#!/usr/bin/env python3
+import subprocess
+import json
+import os
+import requests
+import re
+from datetime import datetime
+
+SKILLS_CONFIG = "/opt/jarvis/skills_config.json"
+
+def load_skills_config():
+    if os.path.exists(SKILLS_CONFIG):
+        with open(SKILLS_CONFIG, 'r') as f:
+            return json.load(f)
+    return {
+        "system": True,
+        "file": True,
+        "weather": True,
+        "reminder": True,
+        "search": True
+    }
+
+def save_skills_config(config):
+    with open(SKILLS_CONFIG, 'w') as f:
+        json.dump(config, f, indent=2)
+
+# ============================================
+# НАВЫКИ
+# ============================================
+
+def execute_shell(command, user_id):
+    dangerous = ["rm -rf /", "mkfs", "dd if=", "> /dev/sda", "shutdown", "reboot", "poweroff"]
+    for d in dangerous:
+        if d in command:
+            return f"⛔ Команда '{d}' заблокирована"
+    
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
+        output = result.stdout if result.stdout else result.stderr
+        if len(output) > 4000:
+            output = output[:4000] + "\n\n... (обрезано)"
+        return output if output else "✅ Команда выполнена (нет вывода)"
+    except subprocess.TimeoutExpired:
+        return "⏰ Команда выполнялась >30 сек, прервано"
+    except Exception as e:
+        return f"❌ Ошибка: {e}"
+
+def read_file(path):
+    try:
+        if not os.path.exists(path):
+            return f"❌ Файл {path} не найден"
+        with open(path, 'r') as f:
+            content = f.read(10000)
+            return content if content else "(файл пуст)"
+    except Exception as e:
+        return f"❌ Ошибка: {e}"
+
+def write_file(path, content):
+    try:
+        with open(path, 'w') as f:
+            f.write(content)
+        return f"✅ Файл {path} сохранён"
+    except Exception as e:
+        return f"❌ Ошибка: {e}"
+
+def get_weather(city="Moscow"):
+    try:
+        response = requests.get(f"https://wttr.in/{city}?format=%C+%t+%w", timeout=10)
+        if response.status_code == 200:
+            return f"🌤️ {city}: {response.text.strip()}"
+        return f"❌ Не удалось получить погоду для {city}"
+    except:
+        return "❌ Ошибка подключения к сервису погоды"
+
+def search_web(query):
+    try:
+        response = requests.get(
+            f"https://html.duckduckgo.com/html/?q={query}",
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=10
+        )
+        results = re.findall(r'<a rel="nofollow" class="result-link" href="([^"]+)"', response.text)
+        titles = re.findall(r'<a class="result-link" [^>]*><span[^>]*>([^<]+)</span>', response.text)
+        
+        output = f"🔍 Результаты поиска для '{query}':\n\n"
+        for i, (title, url) in enumerate(zip(titles[:5], results[:5])):
+            output += f"{i+1}. {title}\n   {url}\n\n"
+        return output if output else "❌ Ничего не найдено"
+    except:
+        return "❌ Ошибка поиска"
+
+reminders = {}
+
+def add_reminder(user_id, text, seconds):
+    import threading
+    def remind():
+        import time
+        time.sleep(seconds)
+        print(f"REMINDER:{user_id}:{text}")
+    t = threading.Thread(target=remind)
+    t.daemon = True
+    t.start()
+    return f"✅ Напоминание установлено на {seconds} сек: {text}"
+
+def process_skills(text, user_id, skills_config, send_callback=None):
+    text_lower = text.lower()
+    
+    if text_lower.startswith('!') or text_lower.startswith('$'):
+        if skills_config.get("system", False):
+            command = text[1:] if text.startswith('!') else text[1:]
+            return execute_shell(command, user_id)
+        return "⛔ Навык 'system' отключён"
+    
+    if text_lower.startswith('@cat '):
+        if skills_config.get("file", False):
+            path = text[5:].strip()
+            return read_file(path)
+        return "⛔ Навык 'file' отключён"
+    
+    if text_lower.startswith('@write '):
+        if skills_config.get("file", False):
+            parts = text[7:].split('||', 1)
+            if len(parts) == 2:
+                path = parts[0].strip()
+                content = parts[1].strip()
+                return write_file(path, content)
+            return "❌ Формат: @write /путь/файла || содержание"
+        return "⛔ Навык 'file' отключён"
+    
+    if 'погода' in text_lower or 'weather' in text_lower:
+        if skills_config.get("weather", False):
+            city_match = re.search(r'(?:в|in)\s+([A-Za-zА-Яа-я-]+)', text)
+            city = city_match.group(1) if city_match else "Moscow"
+            return get_weather(city)
+        return "⛔ Навык 'weather' отключён"
+    
+    if text_lower.startswith('найди ') or text_lower.startswith('поиск ') or text_lower.startswith('search '):
+        if skills_config.get("search", False):
+            query = text_lower.replace('найди ', '').replace('поиск ', '').replace('search ', '')
+            return search_web(query)
+        return "⛔ Навык 'search' отключён"
+    
+    if text_lower.startswith('напомни ') or text_lower.startswith('remind '):
+        if skills_config.get("reminder", False):
+            parts = text_lower.replace('напомни ', '').replace('remind ', '').split(' через ', 1)
+            if len(parts) == 2:
+                reminder_text = parts[0]
+                time_part = parts[1]
+                seconds = 60
+                if 'мин' in time_part:
+                    seconds = int(re.search(r'\d+', time_part).group()) * 60
+                elif 'сек' in time_part:
+                    seconds = int(re.search(r'\d+', time_part).group())
+                elif 'час' in time_part:
+                    seconds = int(re.search(r'\d+', time_part).group()) * 3600
+                return add_reminder(user_id, reminder_text, seconds)
+            return "❌ Формат: напомни [текст] через [время] (сек/мин/час)"
+        return "⛔ Навык 'reminder' отключён"
+    
+    return None
+
+def toggle_skill(skill_name, enable):
+    config = load_skills_config()
+    if skill_name in config:
+        config[skill_name] = enable
+        save_skills_config(config)
+        return f"✅ Навык '{skill_name}' {'включён' if enable else 'отключён'}"
+    return f"❌ Навык '{skill_name}' не найден"
+
+def list_skills():
+    config = load_skills_config()
+    output = "📦 **Доступные навыки:**\n\n"
+    for skill, enabled in config.items():
+        status = "🟢" if enabled else "🔴"
+        output += f"{status} {skill}\n"
+    return output
+
+def help_skills():
+    return """
+📦 **Навыки Джарвиса:**
+
+| Команда | Описание |
+|---------|----------|
+| `!команда` | Выполнить shell команду |
+| `@cat /путь/файла` | Показать содержимое файла |
+| `@write /путь || текст` | Записать текст в файл |
+| `погода в Москве` | Показать погоду |
+| `найди что-то` | Поиск в интернете |
+| `напомни текст через 5 мин` | Напоминание |
+
+**Управление (только админ):**
+`/skills` — список навыков
+`/skill on system` — включить навык
+`/skill off system` — выключить навык
+"""
+EOF
+
+    chown $JARVIS_USER:$JARVIS_USER $SKILLS_SCRIPT
+}
+
+# ============================================
+# СОЗДАНИЕ СКРИПТА БОТА
 # ============================================
 create_bot_script() {
     cat > $BOT_SCRIPT << 'EOF'
@@ -195,14 +338,13 @@ import os
 import sys
 import json
 import requests
-import asyncio
 import base64
 import subprocess
+import asyncio
 from datetime import datetime
-from telegram import Update, InputFile
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from PIL import Image
-import io
+import skills
 
 CONFIG_FILE = "/opt/jarvis/config.env"
 
@@ -232,81 +374,79 @@ def is_vision_model(model_name):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in ALLOWED_USERS:
-        await update.message.reply_text("⛔ Доступ запрещён. Обратитесь к администратору.")
+        await update.message.reply_text("⛔ Доступ запрещён.")
         return
-    
     await update.message.reply_text(
         "🦞 **Джарвис**\n\n"
         "Я ваш персональный AI-ассистент.\n\n"
-        "📸 **Отправьте фото** — я опишу, что на нём\n"
-        "🎤 **Отправьте голосовое** — я распознаю речь\n"
-        "📝 **Напишите текст** — я отвечу\n\n"
-        "**Доступные команды:**\n"
-        "/status — статус системы\n"
-        "/help — помощь\n"
-        "/model — текущая модель",
+        "📸 **Отправьте фото** — опишу\n"
+        "🎤 **Отправьте голосовое** — распознаю речь\n"
+        "💬 **Напишите текст** — отвечу\n\n"
+        "⚡ **Навыки:** !команда, @cat, погода, найди, напомни\n"
+        "/skills — список навыков\n"
+        "/help — помощь",
         parse_mode="Markdown"
     )
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🦞 **Команды Джарвиса**\n\n"
-        "/start — приветствие\n"
-        "/status — статус системы\n"
-        "/model — показать текущую модель\n"
-        "/help — эта справка\n\n"
-        "**Функции:**\n"
-        "📸 Отправьте фото — опишу изображение\n"
-        "🎤 Отправьте голосовое — распознаю речь\n"
-        "💬 Просто напишите — отвечу\n\n"
-        f"🤖 Текущая модель: `{MODEL}`",
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text(skills.help_skills())
 
 async def model_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in ALLOWED_USERS:
         return
-    
     await update.message.reply_text(
-        f"🤖 **Текущая модель:**\n`{MODEL}`\n\n"
-        f"🖼️ Поддержка изображений: {'✅ Да' if is_vision_model(MODEL) else '❌ Нет'}",
+        f"🤖 **Модель:** `{MODEL}`\n"
+        f"🖼️ Vision: {'✅' if is_vision_model(MODEL) else '❌'}",
         parse_mode="Markdown"
     )
+
+async def skills_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if user_id not in ALLOWED_USERS:
+        return
+    await update.message.reply_text(skills.list_skills(), parse_mode="Markdown")
+
+async def skill_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if user_id not in ALLOWED_USERS:
+        return
+    if len(context.args) != 2:
+        await update.message.reply_text("Использование: /skill on/off название")
+        return
+    action = context.args[0].lower()
+    skill_name = context.args[1].lower()
+    if action == "on":
+        result = skills.toggle_skill(skill_name, True)
+    elif action == "off":
+        result = skills.toggle_skill(skill_name, False)
+    else:
+        result = "❌ Используйте on или off"
+    await update.message.reply_text(result)
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in ALLOWED_USERS:
-        await update.message.reply_text("⛔ Доступ запрещён.")
         return
-    
     if not is_vision_model(MODEL):
-        await update.message.reply_text(f"❌ Модель `{MODEL}` не поддерживает изображения.\n\nИспользуйте мультимодальную модель (llava, qwen3-vl, gemma3-vision и др.)", parse_mode="Markdown")
+        await update.message.reply_text(f"❌ Модель {MODEL} не поддерживает изображения")
         return
-    
     await update.message.reply_chat_action("typing")
-    
     try:
-        # Скачиваем фото
         photo_file = await update.message.photo[-1].get_file()
         photo_bytes = await photo_file.download_as_bytearray()
-        
-        # Конвертируем в base64
         image_b64 = base64.b64encode(photo_bytes).decode()
-        
-        # Запрос к Ollama
         response = requests.post(OLLAMA_URL, json={
             "model": MODEL,
-            "prompt": "Опиши подробно, что ты видишь на этом изображении. Опиши детали, объекты, цвета, атмосферу.",
+            "prompt": "Опиши подробно, что видишь на изображении",
             "images": [image_b64],
             "stream": False
         }, timeout=120)
-        
         if response.status_code == 200:
-            reply = response.json().get("response", "Не могу описать изображение")
+            reply = response.json().get("response", "Не могу описать")
             await update.message.reply_text(reply)
         else:
-            await update.message.reply_text("⚠️ Ошибка при обработке изображения")
+            await update.message.reply_text("⚠️ Ошибка обработки")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)[:100]}")
 
@@ -314,73 +454,57 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in ALLOWED_USERS:
         return
-    
     await update.message.reply_chat_action("typing")
-    
     try:
-        # Скачиваем голосовое
         voice_file = await update.message.voice.get_file()
         voice_path = f"/tmp/voice_{user_id}.ogg"
         await voice_file.download_to_drive(voice_path)
-        
-        # Конвертируем в формат для whisper
         wav_path = f"/tmp/voice_{user_id}.wav"
         subprocess.run(["ffmpeg", "-i", voice_path, "-ar", "16000", "-ac", "1", wav_path, "-y"], capture_output=True)
-        
-        # Распознавание через whisper
         whisper_response = requests.post("http://127.0.0.1:11434/api/generate", json={
             "model": "whisper:tiny",
             "prompt": "",
             "file": wav_path,
             "stream": False
         }, timeout=60)
-        
-        text = ""
-        if whisper_response.status_code == 200:
-            text = whisper_response.json().get("response", "")
-        
-        # Отправляем распознанный текст в основную модель
+        text = whisper_response.json().get("response", "") if whisper_response.status_code == 200 else ""
         if text:
             response = requests.post(OLLAMA_URL, json={
                 "model": MODEL,
-                "prompt": f"Пользователь сказал голосом: {text}\n\nОтветь на это сообщение:",
+                "prompt": f"Пользователь сказал: {text}\n\nОтветь:",
                 "stream": False
             }, timeout=60)
-            
             if response.status_code == 200:
-                reply = response.json().get("response", "Не могу ответить")
-                await update.message.reply_text(reply)
+                await update.message.reply_text(response.json().get("response", ""))
             else:
-                await update.message.reply_text(f"🎤 Распознано: {text}\n\n(Ошибка генерации ответа)")
+                await update.message.reply_text(f"🎤 Распознано: {text}")
         else:
-            await update.message.reply_text("🎤 Не удалось распознать речь. Попробуйте говорить чётче.")
-            
+            await update.message.reply_text("🎤 Не удалось распознать речь")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)[:100]}")
-    finally:
-        # Очистка временных файлов
-        for path in [voice_path, wav_path]:
-            if os.path.exists(path):
-                os.remove(path)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in ALLOWED_USERS:
-        await update.message.reply_text("⛔ Доступ запрещён.")
         return
     
     user_text = update.message.text
-    await update.message.reply_chat_action("typing")
+    skills_config = skills.load_skills_config()
     
+    skill_result = skills.process_skills(user_text, user_id, skills_config)
+    if skill_result:
+        await update.message.reply_text(skill_result)
+        return
+    
+    await update.message.reply_chat_action("typing")
     try:
-        # Проверяем, используем ли OpenAI API
         if USE_OPENAI and OPENAI_KEY:
             import openai
             openai.api_key = OPENAI_KEY
             response = openai.ChatCompletion.create(
                 model=OPENAI_MODEL,
                 messages=[
-                    {"role": "system", "content": "Ты Джарвис — персональный AI-ассистент. Ты вежлив, саркастичен, технически подкован. Отвечай кратко и по делу."},
+                    {"role": "system", "content": "Ты Джарвис. Отвечай кратко и по делу."},
                     {"role": "user", "content": user_text}
                 ],
                 timeout=60
@@ -388,18 +512,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply = response.choices[0].message.content
             await update.message.reply_text(reply)
         else:
-            # Локальная модель
             response = requests.post(OLLAMA_URL, json={
                 "model": MODEL,
-                "prompt": f"Ты Джарвис — персональный AI-ассистент. Ты вежлив, саркастичен, технически подкован. Отвечай кратко и по делу. Пользователь сказал: {user_text}",
+                "prompt": f"Ты Джарвис. Отвечай кратко и по делу. Пользователь: {user_text}",
                 "stream": False
             }, timeout=120)
-            
             if response.status_code == 200:
                 reply = response.json().get("response", "Не могу ответить")
                 await update.message.reply_text(reply)
             else:
-                await update.message.reply_text("⚠️ Ошибка модели. Попробуйте позже.")
+                await update.message.reply_text("⚠️ Ошибка модели")
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)[:100]}")
 
@@ -407,55 +529,45 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in ALLOWED_USERS:
         return
-    
-    # Получаем информацию о системе
     try:
         cpu = subprocess.check_output("top -bn1 | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1", shell=True).decode().strip()
         mem = subprocess.check_output("free -h | awk '/^Mem:/ {print $3\"/\"$2}'", shell=True).decode().strip()
         uptime = subprocess.check_output("uptime -p", shell=True).decode().strip()
-        ram_total = subprocess.check_output("free -g | awk '/^Mem:/ {print $2}'", shell=True).decode().strip()
     except:
-        cpu = "N/A"
-        mem = "N/A"
-        uptime = "N/A"
-        ram_total = "?"
-    
+        cpu = mem = uptime = "N/A"
     await update.message.reply_text(
         f"🦞 **Джарвис**\n\n"
         f"🤖 Модель: `{MODEL}`\n"
-        f"🖼️ Vision: {'✅ Да' if is_vision_model(MODEL) else '❌ Нет'}\n"
         f"📊 CPU: {cpu}%\n"
         f"💾 Память: {mem}\n"
-        f"🎛️ RAM всего: {ram_total}GB\n"
-        f"⏱️ Время работы: {uptime}\n"
-        f"👥 Пользователей: {len(ALLOWED_USERS)}",
+        f"⏱️ Время работы: {uptime}",
         parse_mode="Markdown"
     )
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("status", status_cmd))
     app.add_handler(CommandHandler("help", help_cmd))
     app.add_handler(CommandHandler("model", model_cmd))
+    app.add_handler(CommandHandler("skills", skills_list))
+    app.add_handler(CommandHandler("skill", skill_toggle))
+    app.add_handler(CommandHandler("status", status_cmd))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    print(f"🦞 Джарвис запущен!")
-    print(f"🤖 Модель: {MODEL}")
-    print(f"🖼️ Поддержка изображений: {is_vision_model(MODEL)}")
-    print(f"👥 Пользователи: {ALLOWED_USERS}")
-    
+    print(f"🦞 Джарвис запущен! Модель: {MODEL}")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
 EOF
+
+    chown $JARVIS_USER:$JARVIS_USER $BOT_SCRIPT
 }
 
 # ============================================
-# Создание systemd сервиса
+# СОЗДАНИЕ SYSTEMD СЕРВИСА
 # ============================================
 create_systemd_service() {
     cat > $SERVICE_FILE << EOF
@@ -479,242 +591,234 @@ EOF
 }
 
 # ============================================
-# Показать все модели
+# ФУНКЦИЯ УСТАНОВКИ
 # ============================================
-show_all_models() {
+install_jarvis() {
     clear
-    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}${BOLD}           📦 ДОСТУПНЫЕ МОДЕЛИ${NC}"
-    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
-    echo "  🧠 REASONING (думают вслух, очень умные):"
-    echo "    1. deepseek-r1:7b       - 4.7GB (отличный русский)"
-    echo "    2. deepseek-r1:8b       - 5.0GB (ещё умнее)"
-    echo "    3. qwq:32b              - 20GB (Qwen reasoning, мощная)"
-    echo ""
-    echo "  🏆 ТОПОВЫЕ ЛОКАЛЬНЫЕ (бесплатные):"
-    echo "    4. qwen3:8b             - 5.0GB (лучший русский, 128k контекст)"
-    echo "    5. qwen3:14b            - 9.0GB (очень умная)"
-    echo "    6. qwen2.5:7b           - 4.5GB (проверенная)"
-    echo "    7. llama3.3:70b         - 42GB (Meta, ChatGPT-level)"
-    echo "    8. gpt-oss:20b          - 12GB (OpenAI, ChatGPT-like)"
-    echo "    9. gpt-oss:120b         - 70GB (OpenAI, GPT-4 level)"
-    echo ""
-    echo "  💻 КОД И ТЕХНИЧЕСКИЕ:"
-    echo "    10. deepseek-coder:6.7b - 4.0GB (код)"
-    echo "    11. qwen2.5-coder:7b    - 4.5GB (код)"
-    echo ""
-    echo "  ⚡ ЛЁГКИЕ (для слабых серверов):"
-    echo "    12. qwen2.5:1.5b        - 1.0GB (быстрая)"
-    echo "    13. llama3.2:3b         - 2.0GB (быстрая)"
-    echo "    14. phi3:3.8b           - 2.5GB (Microsoft)"
-    echo ""
-    echo "  🎨 МУЛЬТИМОДАЛЬНЫЕ (видят изображения):"
-    echo "    15. llava:7b            - 4.5GB (описывает фото)"
-    echo "    16. llava-phi3:3.8b     - 3.0GB (лёгкая)"
-    echo "    17. moondream:1.8b      - 1.2GB (мини-мультимодальная)"
-    echo "    18. qwen3-vl:8b         - 5.5GB (Qwen vision, русский)"
-    echo "    19. gemma3:12b-vision   - 8.0GB (Google, отличное)"
-    echo "    20. minicpm-v:8b        - 5.0GB (компактная)"
-    echo "    21. deepseek-ocr:3b     - 2.5GB (OCR с картинок)"
-    echo "    22. cogvlm:17b          - 10GB (китайская, точная)"
-    echo "    23. bakllava:7b         - 4.5GB (улучшенная LLaVA)"
-    echo "    24. llava-llama3:8b     - 5.0GB (LLaVA на Llama 3)"
-    echo "    25. granite3.2-vision:2b - 1.5GB (IBM, лёгкая)"
-    echo "    26. qwen2.5vl:7b        - 5.0GB (Qwen 2.5 vision)"
-    echo "    27. qwen2.5vl:32b       - 20GB (профессиональная)"
-    echo ""
-    echo "  🎵 АУДИО МОДЕЛИ (голос, музыка):"
-    echo "    28. whisper:tiny        - 0.2GB (распознавание речи, русский)"
-    echo "    29. whisper:small       - 0.5GB (хорошее качество)"
-    echo "    30. whisper:medium      - 1.5GB (отличное качество)"
-    echo "    31. whisper:large       - 3.0GB (профессиональное)"
-    echo ""
-    echo "  🎥 ВИДЕО МОДЕЛИ:"
-    echo "    32. video-llava:7b      - 5.0GB (анализирует видео)"
-    echo "    33. internvl2:8b        - 5.5GB (видео + изображения)"
-    echo "    34. llava-next:7b       - 4.5GB (улучшенная видео-модель)"
-    echo ""
-    echo "  🤖 CHATGPT (платные варианты):"
-    echo "    35. ChatGPT (OpenAI API)       - 💰 платный API"
-    echo "    36. ChatGPT (ChatMock)         - 💰 требует ChatGPT Plus"
-    echo "    37. ChatGPT (GPT-OSS)          - ✅ бесплатно, локально"
-    echo ""
-    echo "  🔧 38. Своя модель"
-    echo ""
-    read -p "Введите номер модели для установки: " model_num
-}
-
-# ============================================
-# Функция смены модели
-# ============================================
-change_model() {
-    clear
-    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}${BOLD}           🔄 СМЕНА МОДЕЛИ${NC}"
-    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                                    🦞 ${CYAN}${BOLD}ДЖАРВИС 4.0${NC} 🦞                                      ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                                                                                    ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                        ${YELLOW}✨ Передай привеД ПОТАПу !!! ✨${NC}                           ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    # Текущая модель
-    CURRENT_MODEL=$(grep '^MODEL=' $CONFIG_FILE 2>/dev/null | cut -d'"' -f2)
-    echo -e "${YELLOW}Текущая модель:${NC} ${GREEN}$CURRENT_MODEL${NC}"
-    echo ""
+    if [ "$EUID" -ne 0 ]; then 
+        print_error "Запустите скрипт от root (sudo ./jarvis_install.sh)"
+        exit 1
+    fi
 
-    # Доступные модели
-    echo -e "${BLUE}📦 Установленные модели:${NC}"
-    ollama list 2>/dev/null || echo "  (Ollama не запущен)"
+    # Telegram бот
     echo ""
-
-    # RAM
-    FREE_RAM=$(free -g | awk '/^Mem:/{print $7}')
-    echo -e "${BLUE}💾 Свободно RAM:${NC} ${GREEN}${FREE_RAM}GB${NC}"
+    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│                    🤖 TELEGRAM БОТ                          │${NC}"
+    echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│ 1. Найдите @BotFather в Telegram                                   │"
+    echo -e "│ 2. Отправьте /newbot                                               │"
+    echo -e "│ 3. Получите токен                                                  │"
+    echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
     echo ""
+    read -p "👉 Введите токен: " BOT_TOKEN
+    while [ -z "$BOT_TOKEN" ]; do
+        print_error "Токен не может быть пустым!"
+        read -p "👉 Введите токен: " BOT_TOKEN
+    done
 
-    # Меню
-    show_all_models
+    # Chat ID
+    echo ""
+    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│                    👤 ВАШ CHAT ID                          │${NC}"
+    echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│ 1. Найдите @userinfobot в Telegram                                 │"
+    echo -e "│ 2. Отправьте любое сообщение                                        │"
+    echo -e "│ 3. Скопируйте ID (число)                                           │"
+    echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    read -p "👉 Введите Chat ID: " CHAT_ID
+    while [ -z "$CHAT_ID" ]; do
+        print_error "Chat ID не может быть пустым!"
+        read -p "👉 Введите Chat ID: " CHAT_ID
+    done
+
+    # Модель
+    echo ""
+    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│                    🧠 ВЫБОР МОДЕЛИ                          │${NC}"
+    echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│  ${GREEN}1${NC}) qwen2.5:1.5b  - 1GB   - быстрая                        │"
+    echo -e "│  ${GREEN}2${NC}) llama3.2:3b    - 2GB   - хороший баланс                │"
+    echo -e "│  ${GREEN}3${NC}) qwen2.5:7b     - 4.5GB - умная                         │"
+    echo -e "│  ${GREEN}4${NC}) deepseek-r1:7b - 4.7GB - reasoning (думает вслух)      │"
+    echo -e "│  ${GREEN}5${NC}) llava:7b       - 4.5GB - видит изображения              │"
+    echo -e "│  ${GREEN}6${NC}) moondream:1.8b - 1.2GB - лёгкая, видит фото            │"
+    echo -e "│  ${GREEN}7${NC}) Показать все 44 модели                                │"
+    echo -e "│  ${GREEN}8${NC}) Своя модель                                           │"
+    echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
     
-    if [[ "$model_num" == "38" ]] || [[ -z "$model_num" ]]; then
-        read -p "Введите название модели: " NEW_MODEL
-    elif [[ "$model_num" == "35" ]]; then
-        # ChatGPT API
-        echo ""
-        echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
-        echo -e "${YELLOW}│                    🤖 CHATGPT (OpenAI API)                   │${NC}"
-        echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
-        echo -e "│  💰 ${RED}ПЛАТНЫЙ СЕРВИС${NC}                                           │"
-        echo -e "│  🔑 Ключ: https://platform.openai.com/api-keys                     │"
-        echo -e "│  💵 gpt-4o-mini: ~$0.15/1M токенов                                 │"
-        echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
-        echo ""
-        read -p "Введите API-ключ: " OPENAI_KEY
-        read -p "Модель (gpt-4o-mini/gpt-4o): " GPT_MODEL
-        echo "USE_OPENAI=true" >> $CONFIG_FILE
-        echo "OPENAI_API_KEY=\"$OPENAI_KEY\"" >> $CONFIG_FILE
-        echo "OPENAI_MODEL=\"$GPT_MODEL\"" >> $CONFIG_FILE
-        print_success "OpenAI API настроен"
-        systemctl restart jarvis-bot
+    TOTAL_RAM=$(free -g | awk '/^Mem:/{print $2}')
+    FREE_RAM=$(free -g | awk '/^Mem:/{print $7}')
+    echo -e "${BLUE}💾 Ваш сервер:${NC} ${TOTAL_RAM}GB RAM (свободно ~${FREE_RAM}GB)"
+    echo ""
+    
+    read -p "👉 Выберите [1-8]: " MODEL_CHOICE
+    
+    case $MODEL_CHOICE in
+        1) MODEL="qwen2.5:1.5b" ;;
+        2) MODEL="llama3.2:3b" ;;
+        3) MODEL="qwen2.5:7b" ;;
+        4) MODEL="deepseek-r1:7b" ;;
+        5) MODEL="llava:7b" ;;
+        6) MODEL="moondream:1.8b" ;;
+        7) 
+            show_all_models
+            read -p "👉 Введите номер модели: " num
+            MODEL=$(get_model_by_number $num)
+            ;;
+        8) 
+            read -p "👉 Введите название модели: " MODEL
+            ;;
+        *) MODEL="qwen2.5:1.5b" ;;
+    esac
+
+    # Дополнительные пользователи
+    echo ""
+    read -p "👉 Дополнительные Chat ID (через пробел, или пусто): " EXTRA_USERS
+
+    # ChatGPT API
+    echo ""
+    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│                    🤖 CHATGPT API                          │${NC}"
+    echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│ Использовать ChatGPT через API? (платно)                          │"
+    echo -e "│ Ключ: https://platform.openai.com/api-keys                        │"
+    echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    read -p "👉 Использовать ChatGPT API? (y/N): " use_openai
+    if [[ "$use_openai" == "y" || "$use_openai" == "Y" ]]; then
+        read -p "👉 OpenAI API ключ: " OPENAI_KEY
+        read -p "👉 Модель (gpt-4o-mini/gpt-4o): " OPENAI_MODEL
+        USE_OPENAI="true"
+    else
+        USE_OPENAI="false"
+    fi
+
+    # Подтверждение
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}✅ ВСЕ ДАННЫЕ СОБРАНЫ!${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "🤖 Токен: ${GREEN}${BOT_TOKEN:0:20}...${NC}"
+    echo -e "👤 Chat ID: ${GREEN}$CHAT_ID${NC}"
+    echo -e "🧠 Модель: ${GREEN}$MODEL${NC}"
+    echo -e "👥 Доп. пользователи: ${GREEN}${EXTRA_USERS:-нет}${NC}"
+    echo -e "🤖 ChatGPT API: ${GREEN}$USE_OPENAI${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    read -p "👉 Начать установку? (y/N): " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        print_info "Установка отменена"
         pause
         return
-    elif [[ "$model_num" == "36" ]]; then
-        # ChatMock
-        echo ""
-        echo -e "${YELLOW}ChatMock требует ChatGPT Plus подписку${NC}"
-        read -p "Установить ChatMock? (y/N): " install_cm
-        if [[ "$install_cm" == "y" ]]; then
-            cd /tmp
-            git clone https://github.com/RayBytes/ChatMock
-            cd ChatMock
-            pip install -r requirements.txt
-            python chatmock.py login
-            print_success "ChatMock установлен"
-        fi
-        return
-    elif [[ "$model_num" == "37" ]]; then
-        # GPT-OSS
-        echo ""
-        read -p "Скачать gpt-oss:20b? (12GB) (y/N): " dl
-        if [[ "$dl" == "y" ]]; then
-            ollama pull gpt-oss:20b
-            NEW_MODEL="gpt-oss:20b"
-        else
-            return
-        fi
-    else
-        # Получаем название модели по номеру
-        case $model_num in
-            1) NEW_MODEL="deepseek-r1:7b" ;;
-            2) NEW_MODEL="deepseek-r1:8b" ;;
-            3) NEW_MODEL="qwq:32b" ;;
-            4) NEW_MODEL="qwen3:8b" ;;
-            5) NEW_MODEL="qwen3:14b" ;;
-            6) NEW_MODEL="qwen2.5:7b" ;;
-            7) NEW_MODEL="llama3.3:70b" ;;
-            8) NEW_MODEL="gpt-oss:20b" ;;
-            9) NEW_MODEL="gpt-oss:120b" ;;
-            10) NEW_MODEL="deepseek-coder:6.7b" ;;
-            11) NEW_MODEL="qwen2.5-coder:7b" ;;
-            12) NEW_MODEL="qwen2.5:1.5b" ;;
-            13) NEW_MODEL="llama3.2:3b" ;;
-            14) NEW_MODEL="phi3:3.8b" ;;
-            15) NEW_MODEL="llava:7b" ;;
-            16) NEW_MODEL="llava-phi3:3.8b" ;;
-            17) NEW_MODEL="moondream:1.8b" ;;
-            18) NEW_MODEL="qwen3-vl:8b" ;;
-            19) NEW_MODEL="gemma3:12b-vision" ;;
-            20) NEW_MODEL="minicpm-v:8b" ;;
-            21) NEW_MODEL="deepseek-ocr:3b" ;;
-            22) NEW_MODEL="cogvlm:17b" ;;
-            23) NEW_MODEL="bakllava:7b" ;;
-            24) NEW_MODEL="llava-llama3:8b" ;;
-            25) NEW_MODEL="granite3.2-vision:2b" ;;
-            26) NEW_MODEL="qwen2.5vl:7b" ;;
-            27) NEW_MODEL="qwen2.5vl:32b" ;;
-            28) NEW_MODEL="whisper:tiny" ;;
-            29) NEW_MODEL="whisper:small" ;;
-            30) NEW_MODEL="whisper:medium" ;;
-            31) NEW_MODEL="whisper:large" ;;
-            32) NEW_MODEL="video-llava:7b" ;;
-            33) NEW_MODEL="internvl2:8b" ;;
-            34) NEW_MODEL="llava-next:7b" ;;
-            *) NEW_MODEL="qwen2.5:1.5b" ;;
-        esac
     fi
 
-    # Скачиваем модель если нужно
-    if [ -n "$NEW_MODEL" ]; then
-        if ! ollama list | grep -q "$NEW_MODEL"; then
-            print_info "Скачивание $NEW_MODEL..."
-            ollama pull "$NEW_MODEL"
-        fi
-        
-        # Меняем в конфиге
-        sed -i "s/MODEL=.*/MODEL=\"$NEW_MODEL\"/" $CONFIG_FILE
-        
-        # Меняем в скрипте
-        sed -i "s/MODEL = \".*\"/MODEL = \"$NEW_MODEL\"/" $BOT_SCRIPT
-        
-        print_success "Модель изменена на $NEW_MODEL"
-        
-        # Перезапуск
-        systemctl restart jarvis-bot 2>/dev/null || true
+    # Установка
+    print_info "Начинаю установку..."
+    apt update && apt upgrade -y
+    apt install -y curl git wget python3 python3-pip python3-venv ufw ffmpeg
+
+    if ! command -v ollama &> /dev/null; then
+        print_info "Установка Ollama..."
+        curl -fsSL https://ollama.com/install.sh | sh
     fi
-    
+
+    print_info "Загрузка модели $MODEL..."
+    ollama pull $MODEL
+
+    if [[ "$MODEL" == *"llava"* ]] || [[ "$MODEL" == *"moondream"* ]]; then
+        print_info "Скачивание whisper для голоса..."
+        ollama pull whisper:tiny 2>/dev/null || true
+    fi
+
+    id "$JARVIS_USER" &>/dev/null || useradd -m -s /usr/sbin/nologin $JARVIS_USER
+    mkdir -p $JARVIS_DIR
+    chown $JARVIS_USER:$JARVIS_USER $JARVIS_DIR
+
+    cat > $CONFIG_FILE << EOF
+BOT_TOKEN="$BOT_TOKEN"
+MODEL="$MODEL"
+ALLOWED_USERS="$CHAT_ID $EXTRA_USERS"
+OLLAMA_URL="http://127.0.0.1:11434/api/generate"
+USE_OPENAI="$USE_OPENAI"
+EOF
+    if [[ "$USE_OPENAI" == "true" ]]; then
+        echo "OPENAI_API_KEY=\"$OPENAI_KEY\"" >> $CONFIG_FILE
+        echo "OPENAI_MODEL=\"$OPENAI_MODEL\"" >> $CONFIG_FILE
+    fi
+
+    create_skills_script
+    create_bot_script
+    chmod +x $BOT_SCRIPT $SKILLS_SCRIPT
+    chown -R $JARVIS_USER:$JARVIS_USER $JARVIS_DIR
+
+    sudo -u $JARVIS_USER python3 -m venv $JARVIS_DIR/venv
+    sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install --quiet python-telegram-bot requests pillow
+
+    create_systemd_service
+    systemctl daemon-reload
+    systemctl enable jarvis-bot
+    systemctl restart ollama
+    sleep 3
+    systemctl restart jarvis-bot
+
+    print_success "Джарвис установлен и запущен!"
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}✅ УСТАНОВКА ЗАВЕРШЕНА!${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "🔹 Telegram бот: @$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getMe" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)"
+    echo -e "🔹 Статус: ${GREEN}systemctl status jarvis-bot${NC}"
+    echo -e "🔹 Логи: ${GREEN}journalctl -u jarvis-bot -f${NC}"
+    echo -e "🔹 Управление: ${GREEN}$0${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     pause
 }
 
 # ============================================
-# Меню управления
+# МЕНЮ УПРАВЛЕНИЯ
 # ============================================
 show_menu() {
     clear
-    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}${BOLD}║${NC}                         🦞 ДЖАРВИС 🦞                         ${CYAN}${BOLD}║${NC}"
-    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                                    🦞 ${CYAN}${BOLD}ДЖАРВИС 4.0${NC} 🦞                                      ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                                                                                    ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                        ${YELLOW}✨ Передай привеД ПОТАПу !!! ✨${NC}                           ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${GREEN} 1)${NC} Установить/переустановить Джарвиса"
-    echo -e "${RED} 2)${NC} Полное удаление"
+    echo -e "  ${GREEN} 1)${NC}  Установить/переустановить Джарвиса"
+    echo -e "  ${RED} 2)${NC}  Полное удаление"
     echo ""
-    echo -e "${YELLOW} 3)${NC} Изменить Telegram токен"
-    echo -e "${YELLOW} 4)${NC} Изменить модель (44+ вариантов)"
+    echo -e "  ${YELLOW} 3)${NC}  Изменить Telegram токен"
+    echo -e "  ${YELLOW} 4)${NC}  Изменить модель (44+ вариантов)"
     echo ""
-    echo -e "${BLUE} 5)${NC} Добавить пользователя (Chat ID)"
-    echo -e "${BLUE} 6)${NC} Удалить пользователя"
+    echo -e "  ${BLUE} 5)${NC}  Добавить пользователя"
+    echo -e "  ${BLUE} 6)${NC}  Удалить пользователя"
     echo ""
-    echo -e "${CYAN} 7)${NC} Показать конфигурацию"
-    echo -e "${CYAN} 8)${NC} Перезапустить бота"
-    echo -e "${CYAN} 9)${NC} Остановить бота"
-    echo -e "${CYAN}10)${NC} Запустить бота"
-    echo -e "${CYAN}11)${NC} Статус бота"
-    echo -e "${CYAN}12)${NC} Показать логи"
-    echo -e "${CYAN}13)${NC} Обновить Джарвиса"
+    echo -e "  ${CYAN} 7)${NC}  Показать конфигурацию"
+    echo -e "  ${CYAN} 8)${NC}  Перезапустить бота"
+    echo -e "  ${CYAN} 9)${NC}  Остановить бота"
+    echo -e "  ${CYAN}10)${NC}  Запустить бота"
+    echo -e "  ${CYAN}11)${NC}  Статус бота"
+    echo -e "  ${CYAN}12)${NC}  Показать логи"
     echo ""
-    echo -e "${RED} 0)${NC} Выход"
+    echo -e "  ${RED} 0)${NC}  Выход"
     echo ""
-    read -p "Выберите действие: " choice
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    read -p "👉 Выберите действие: " choice
 }
 
 # ============================================
-# Основная программа
+# ОСНОВНАЯ ПРОГРАММА
 # ============================================
 if [ ! -f "$CONFIG_FILE" ] && [ ! -f "$BOT_SCRIPT" ]; then
     install_jarvis
@@ -740,21 +844,32 @@ while true; do
             print_success "Токен обновлён"
             pause
             ;;
-        4) change_model ;;
+        4)
+            echo ""
+            read -p "👉 Название модели: " NEW_MODEL
+            if [ -n "$NEW_MODEL" ]; then
+                print_info "Скачивание $NEW_MODEL..."
+                ollama pull "$NEW_MODEL"
+                sed -i "s/MODEL=.*/MODEL=\"$NEW_MODEL\"/" $CONFIG_FILE
+                systemctl restart jarvis-bot
+                print_success "Модель изменена на $NEW_MODEL"
+            fi
+            pause
+            ;;
         5)
-            read -p "Chat ID нового пользователя: " NEW_USER
-            CURRENT_USERS=$(grep "^ALLOWED_USERS=" $CONFIG_FILE | sed 's/ALLOWED_USERS="//' | sed 's/"//')
-            sed -i "s/ALLOWED_USERS=.*/ALLOWED_USERS=\"$CURRENT_USERS $NEW_USER\"/" $CONFIG_FILE
+            read -p "👉 Chat ID нового пользователя: " NEW_USER
+            CURRENT=$(grep "^ALLOWED_USERS=" $CONFIG_FILE | sed 's/ALLOWED_USERS="//' | sed 's/"//')
+            sed -i "s/ALLOWED_USERS=.*/ALLOWED_USERS=\"$CURRENT $NEW_USER\"/" $CONFIG_FILE
             systemctl restart jarvis-bot
             print_success "Пользователь добавлен"
             pause
             ;;
         6)
-            CURRENT_USERS=$(grep "^ALLOWED_USERS=" $CONFIG_FILE | sed 's/ALLOWED_USERS="//' | sed 's/"//')
-            echo "Текущие: $CURRENT_USERS"
-            read -p "Chat ID для удаления: " REMOVE_USER
-            NEW_LIST=$(echo "$CURRENT_USERS" | sed "s/$REMOVE_USER//g" | sed 's/  */ /g')
-            sed -i "s/ALLOWED_USERS=.*/ALLOWED_USERS=\"$NEW_LIST\"/" $CONFIG_FILE
+            CURRENT=$(grep "^ALLOWED_USERS=" $CONFIG_FILE | sed 's/ALLOWED_USERS="//' | sed 's/"//')
+            echo -e "${YELLOW}Текущие пользователи:${NC} $CURRENT"
+            read -p "👉 Chat ID для удаления: " REMOVE
+            NEW=$(echo "$CURRENT" | sed "s/$REMOVE//g" | sed 's/  */ /g' | sed 's/^ *//;s/ *$//')
+            sed -i "s/ALLOWED_USERS=.*/ALLOWED_USERS=\"$NEW\"/" $CONFIG_FILE
             systemctl restart jarvis-bot
             print_success "Пользователь удалён"
             pause
@@ -765,11 +880,6 @@ while true; do
         10) systemctl start jarvis-bot && print_success "Бот запущен"; pause ;;
         11) systemctl status jarvis-bot; pause ;;
         12) journalctl -u jarvis-bot -f ;;
-        13)
-            print_info "Обновление скрипта..."
-            curl -sL https://raw.githubusercontent.com/potap1978/Jarvis_install/main/jarvis_install.sh -o /tmp/jarvis_update.sh
-            bash /tmp/jarvis_update.sh
-            ;;
         0) exit 0 ;;
         *) print_warning "Неверный выбор"; pause ;;
     esac
