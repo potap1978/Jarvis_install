@@ -2,7 +2,7 @@
 
 # ============================================
 # Джарвис - универсальный установщик Telegram бота
-# Версия: 4.0 - с поддержкой Grok (xAI) и ClawHub навыков
+# Версия: 4.0 - с поддержкой Grok, голосового ввода/вывода, ClawHub
 # ============================================
 
 set -e
@@ -206,6 +206,116 @@ configure_time() {
     print_success "Настройка времени завершена!"
     echo -e "${YELLOW}Текущее время:${NC} $(date)"
     pause
+}
+
+# ============================================
+# ВЫБОР TTS ДВИЖКА И ГОЛОСА
+# ============================================
+select_tts_engine() {
+    clear
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                         🎤 НАСТРОЙКА ГОЛОСОВОГО ОТВЕТА                         ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Выберите движок для голосового ответа (TTS):${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC}) Edge TTS      - через интернет, качественные голоса Microsoft (рекомендуется)"
+    echo -e "  ${GREEN}2${NC}) Silero TTS     - локально, без интернета (требует ~500MB)"
+    echo -e "  ${GREEN}0${NC}) Отключить голосовые ответы"
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    read -p "👉 Выберите [0-2]: " tts_choice
+    
+    case $tts_choice in
+        1) 
+            TTS_ENGINE="edge"
+            print_info "Будет использован Edge TTS"
+            select_edge_voice
+            ;;
+        2) 
+            TTS_ENGINE="silero"
+            print_info "Будет использован Silero TTS (локальный)"
+            select_silero_voice
+            ;;
+        *) 
+            TTS_ENGINE="none"
+            print_info "Голосовые ответы отключены"
+            echo "TTS_ENGINE=\"none\"" >> $CONFIG_FILE
+            ;;
+    esac
+}
+
+select_edge_voice() {
+    clear
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                         🎤 ВЫБОР ГОЛОСА (EDGE TTS)                            ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Выберите голос для ответов:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC}) ru-RU-DariyaNeural     (Дарья, женский, рекомендуемый)"
+    echo -e "  ${GREEN}2${NC}) ru-RU-SvetlanaNeural   (Светлана, женский)"
+    echo -e "  ${GREEN}3${NC}) ru-RU-DmitryNeural     (Дмитрий, мужской)"
+    echo -e "  ${GREEN}4${NC}) ru-RU-MarinaNeural     (Марина, женский)"
+    echo -e "  ${GREEN}5${NC}) ru-RU-ArinaNeural      (Арина, женский)"
+    echo -e "  ${GREEN}6${NC}) ru-RU-AntonNeural      (Антон, мужской)"
+    echo -e "  ${GREEN}7${NC}) en-US-JennyNeural      (Дженни, английский, женский)"
+    echo -e "  ${GREEN}8${NC}) Свой голос (введите название)"
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    read -p "👉 Выберите [1-8]: " voice_choice
+    
+    case $voice_choice in
+        1) TTS_VOICE="ru-RU-DariyaNeural" ;;
+        2) TTS_VOICE="ru-RU-SvetlanaNeural" ;;
+        3) TTS_VOICE="ru-RU-DmitryNeural" ;;
+        4) TTS_VOICE="ru-RU-MarinaNeural" ;;
+        5) TTS_VOICE="ru-RU-ArinaNeural" ;;
+        6) TTS_VOICE="ru-RU-AntonNeural" ;;
+        7) TTS_VOICE="en-US-JennyNeural" ;;
+        8) read -p "👉 Введите название голоса: " TTS_VOICE ;;
+        *) TTS_VOICE="ru-RU-DariyaNeural" ;;
+    esac
+    
+    echo "TTS_ENGINE=\"edge\"" >> $CONFIG_FILE
+    echo "TTS_VOICE=\"$TTS_VOICE\"" >> $CONFIG_FILE
+    print_success "Выбран голос: $TTS_VOICE"
+}
+
+select_silero_voice() {
+    clear
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║${NC}                         🎤 ВЫБОР ГОЛОСА (SILERO TTS)                          ${CYAN}${BOLD}║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Выберите голос для ответов:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC}) xenia      (женский, рекомендуемый)"
+    echo -e "  ${GREEN}2${NC}) eugene     (мужской)"
+    echo -e "  ${GREEN}3${NC}) aidar      (мужской)"
+    echo -e "  ${GREEN}4${NC}) baya       (женский)"
+    echo -e "  ${GREEN}5${NC}) kseniya    (женский)"
+    echo -e "  ${GREEN}6${NC}) random     (случайный)"
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    read -p "👉 Выберите [1-6]: " voice_choice
+    
+    case $voice_choice in
+        1) TTS_VOICE="xenia" ;;
+        2) TTS_VOICE="eugene" ;;
+        3) TTS_VOICE="aidar" ;;
+        4) TTS_VOICE="baya" ;;
+        5) TTS_VOICE="kseniya" ;;
+        6) TTS_VOICE="random" ;;
+        *) TTS_VOICE="xenia" ;;
+    esac
+    
+    echo "TTS_ENGINE=\"silero\"" >> $CONFIG_FILE
+    echo "TTS_VOICE=\"$TTS_VOICE\"" >> $CONFIG_FILE
+    print_success "Выбран голос: $TTS_VOICE"
 }
 
 # ============================================
@@ -481,6 +591,19 @@ def google_get_calendar_events():
         start = event['start'].get('dateTime', event['start'].get('date'))
         output += f"• {event['summary']} — {start}\n"
     return output if output != "📅 **Ближайшие события:**\n\n" else "📭 Нет событий"
+
+def google_create_calendar_event(summary, start_time):
+    creds = get_google_creds()
+    if not creds:
+        return "❌ Google не настроен"
+    service = build('calendar', 'v3', credentials=creds)
+    event = {
+        'summary': summary,
+        'start': {'dateTime': start_time, 'timeZone': 'Europe/Moscow'},
+        'end': {'dateTime': start_time, 'timeZone': 'Europe/Moscow'},
+    }
+    event = service.events().insert(calendarId='primary', body=event).execute()
+    return f"✅ Событие создано: {event.get('htmlLink')}"
 
 def google_search_contacts(name):
     creds = get_google_creds()
@@ -926,6 +1049,8 @@ OPENAI_MODEL = config.get("OPENAI_MODEL", "gpt-4o-mini")
 USE_XAI = config.get("USE_XAI", "false") == "true"
 XAI_API_KEY = config.get("XAI_API_KEY", "")
 USE_GROK3API = config.get("USE_GROK3API", "false") == "true"
+TTS_ENGINE = config.get("TTS_ENGINE", "none")
+TTS_VOICE = config.get("TTS_VOICE", "ru-RU-DariyaNeural")
 
 # Загрузка навыков
 skills_modules = {}
@@ -956,7 +1081,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🦞 **Джарвис**\n\n"
         "Я ваш персональный AI-ассистент.\n\n"
         "📸 **Отправьте фото** — опишу\n"
-        "🎤 **Отправьте голосовое** — распознаю речь\n"
+        "🎤 **Отправьте голосовое** — распознаю речь и отвечу голосом\n"
         "💬 **Напишите текст** — отвечу\n\n"
         "⚡ **Навыки:** !команда, @cat, погода, найди, напомни\n"
         "/skills — список навыков\n"
@@ -975,6 +1100,8 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "| `погода в Москве` | Показать погоду |\n"
         "| `найди что-то` | Поиск в интернете |\n"
         "| `напомни текст через 5 мин` | Напоминание |\n\n"
+        "🎤 **Голосовое общение:**\n"
+        "| `отправьте голосовое` | Джарвис ответит голосом |\n\n"
         "**Управление:** `/skills` — список навыков\n"
         "`/skill on/off название` — включить/выключить навык",
         parse_mode="Markdown"
@@ -1038,34 +1165,168 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     if user_id not in ALLOWED_USERS:
         return
+    
     await update.message.reply_chat_action("typing")
+    
     try:
+        # 1. Скачиваем голосовое
         voice_file = await update.message.voice.get_file()
         voice_path = f"/tmp/voice_{user_id}.ogg"
         await voice_file.download_to_drive(voice_path)
+        
+        # 2. Конвертируем в WAV
         wav_path = f"/tmp/voice_{user_id}.wav"
-        subprocess.run(["ffmpeg", "-i", voice_path, "-ar", "16000", "-ac", "1", wav_path, "-y"], capture_output=True)
+        subprocess.run(["ffmpeg", "-i", voice_path, "-ar", "16000", "-ac", "1", wav_path, "-y"], 
+                      capture_output=True)
+        
+        # 3. Распознаём речь через Whisper
         whisper_response = requests.post("http://127.0.0.1:11434/api/generate", json={
             "model": "whisper:tiny",
             "prompt": "",
             "file": wav_path,
             "stream": False
         }, timeout=60)
-        text = whisper_response.json().get("response", "") if whisper_response.status_code == 200 else ""
-        if text:
-            response = requests.post(OLLAMA_URL, json={
-                "model": MODEL,
-                "prompt": f"Пользователь сказал: {text}\n\nОтветь:",
-                "stream": False
-            }, timeout=60)
-            if response.status_code == 200:
-                await update.message.reply_text(response.json().get("response", ""))
-            else:
-                await update.message.reply_text(f"🎤 Распознано: {text}")
-        else:
+        
+        recognized_text = whisper_response.json().get("response", "") if whisper_response.status_code == 200 else ""
+        
+        if not recognized_text:
             await update.message.reply_text("🎤 Не удалось распознать речь")
+            return
+        
+        # 4. Отправляем распознанный текст
+        await update.message.reply_text(f"🎤 Вы сказали: {recognized_text}")
+        
+        # 5. Получаем ответ от модели
+        await update.message.reply_chat_action("typing")
+        response = await get_ai_response(recognized_text)
+        
+        if not response:
+            await update.message.reply_text("❌ Не удалось получить ответ от модели")
+            return
+        
+        # 6. Отправляем текстовый ответ
+        await update.message.reply_text(response)
+        
+        # 7. Если включён TTS — отправляем голосом
+        if TTS_ENGINE == "edge":
+            await send_voice_edge(update, response)
+        elif TTS_ENGINE == "silero":
+            await send_voice_silero(update, response)
+            
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {str(e)[:100]}")
+    finally:
+        for path in [voice_path, wav_path]:
+            if os.path.exists(path):
+                os.remove(path)
+
+async def send_voice_edge(update: Update, text):
+    """Отправка голосового сообщения через Edge TTS"""
+    try:
+        import edge_tts
+        
+        output_path = f"/tmp/jarvis_response_{update.effective_user.id}.mp3"
+        
+        # Синтез речи
+        communicate = edge_tts.Communicate(text, TTS_VOICE)
+        await communicate.save(output_path)
+        
+        # Отправка голосового
+        with open(output_path, 'rb') as f:
+            await update.message.reply_voice(voice=f)
+        
+        os.remove(output_path)
+    except Exception as e:
+        print(f"Edge TTS Error: {e}")
+        await update.message.reply_text("⚠️ Не удалось синтезировать голос")
+
+async def send_voice_silero(update: Update, text):
+    """Отправка голосового сообщения через Silero TTS (локально)"""
+    try:
+        import torch
+        import soundfile as sf
+        import random
+        
+        output_path = f"/tmp/jarvis_response_{update.effective_user.id}.wav"
+        
+        # Загрузка модели (один раз)
+        if not hasattr(send_voice_silero, "model"):
+            device = torch.device('cpu')
+            send_voice_silero.model, _ = torch.hub.load(
+                repo_or_dir='snakers4/silero-models',
+                model='silero_tts',
+                language='ru',
+                speaker='v3_1'
+            )
+            send_voice_silero.model.to(device)
+        
+        # Выбор голоса
+        if TTS_VOICE == "random":
+            voices = ["xenia", "eugene", "aidar", "baya", "kseniya"]
+            speaker = random.choice(voices)
+        else:
+            speaker = TTS_VOICE
+        
+        # Синтез речи
+        audio = send_voice_silero.model.apply_tts(text, speaker=speaker, sample_rate=48000)
+        sf.write(output_path, audio, 48000)
+        
+        # Конвертируем в MP3 для Telegram
+        mp3_path = output_path.replace('.wav', '.mp3')
+        subprocess.run(["ffmpeg", "-i", output_path, "-y", mp3_path], capture_output=True)
+        
+        # Отправка
+        with open(mp3_path, 'rb') as f:
+            await update.message.reply_voice(voice=f)
+        
+        os.remove(output_path)
+        os.remove(mp3_path)
+    except Exception as e:
+        print(f"Silero TTS Error: {e}")
+        await update.message.reply_text("⚠️ Не удалось синтезировать голос")
+
+async def get_ai_response(prompt):
+    """Получение ответа от выбранной модели"""
+    try:
+        if USE_XAI and XAI_API_KEY:
+            response = requests.post(
+                "https://api.x.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {XAI_API_KEY}", "Content-Type": "application/json"},
+                json={"model": "grok-3", "messages": [{"role": "user", "content": prompt}]},
+                timeout=60
+            )
+            if response.status_code == 200:
+                return response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+        
+        elif USE_GROK3API:
+            from grok3api.client import GrokClient
+            client = GrokClient()
+            result = client.ask(prompt)
+            return result.modelResponse.message
+        
+        elif USE_OPENAI and OPENAI_KEY:
+            import openai
+            openai.api_key = OPENAI_KEY
+            response = openai.ChatCompletion.create(
+                model=OPENAI_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=60
+            )
+            return response.choices[0].message.content
+        
+        else:
+            response = requests.post(OLLAMA_URL, json={
+                "model": MODEL,
+                "prompt": f"Ты Джарвис. Отвечай кратко и по делу. Пользователь: {prompt}",
+                "stream": False
+            }, timeout=120)
+            if response.status_code == 200:
+                return response.json().get("response", "")
+        
+        return None
+    except Exception as e:
+        print(f"AI Response Error: {e}")
+        return None
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -1140,56 +1401,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Обычный диалог с ИИ
     await update.message.reply_chat_action("typing")
-    try:
-        # Grok 3 API
-        if USE_XAI and XAI_API_KEY:
-            response = requests.post(
-                "https://api.x.ai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {XAI_API_KEY}", "Content-Type": "application/json"},
-                json={
-                    "model": "grok-3",
-                    "messages": [{"role": "user", "content": user_text}],
-                    "max_tokens": 1000
-                },
-                timeout=60
-            )
-            if response.status_code == 200:
-                reply = response.json().get("choices", [{}])[0].get("message", {}).get("content", "Нет ответа")
-                await update.message.reply_text(reply)
-            else:
-                await update.message.reply_text(f"⚠️ Ошибка Grok API: {response.status_code}")
-        
-        # Grok 3 через grok3api
-        elif USE_GROK3API:
-            from grok3api.client import GrokClient
-            client = GrokClient()
-            result = client.ask(user_text)
-            await update.message.reply_text(result.modelResponse.message)
-        
-        # OpenAI API
-        elif USE_OPENAI and OPENAI_KEY:
-            import openai
-            openai.api_key = OPENAI_KEY
-            response = openai.ChatCompletion.create(
-                model=OPENAI_MODEL,
-                messages=[{"role": "user", "content": user_text}],
-                timeout=60
-            )
-            await update.message.reply_text(response.choices[0].message.content)
-        
-        # Локальная Ollama
-        else:
-            response = requests.post(OLLAMA_URL, json={
-                "model": MODEL,
-                "prompt": f"Ты Джарвис. Отвечай кратко и по делу. Пользователь: {user_text}",
-                "stream": False
-            }, timeout=120)
-            if response.status_code == 200:
-                await update.message.reply_text(response.json().get("response", "Не могу ответить"))
-            else:
-                await update.message.reply_text("⚠️ Ошибка модели")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка: {str(e)[:100]}")
+    response = await get_ai_response(user_text)
+    if response:
+        await update.message.reply_text(response)
+    else:
+        await update.message.reply_text("⚠️ Ошибка модели")
 
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -1204,6 +1420,7 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"🦞 **Джарвис**\n\n"
         f"🤖 Модель: `{MODEL}`\n"
+        f"🎤 Голосовой ответ: `{TTS_ENGINE}`\n"
         f"📊 CPU: {cpu}%\n"
         f"💾 Память: {mem}\n"
         f"⏱️ Время работы: {uptime}",
@@ -1222,6 +1439,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     print(f"🦞 Джарвис запущен! Модель: {MODEL}")
+    print(f"🎤 TTS движок: {TTS_ENGINE}, голос: {TTS_VOICE}")
     print(f"📦 Загружено модулей навыков: {len(skills_modules)}")
     app.run_polling()
 
@@ -1381,6 +1599,9 @@ install_jarvis() {
     # НАСТРОЙКА ВРЕМЕНИ
     configure_time
 
+    # Выбор TTS
+    select_tts_engine
+
     # Выбор провайдеров навыков
     select_skills
     
@@ -1524,6 +1745,10 @@ install_jarvis() {
     echo -e "🧠 Модель: ${GREEN}$MODEL${NC}"
     echo -e "👥 Доп. пользователи: ${GREEN}${EXTRA_USERS:-нет}${NC}"
     echo -e "🤖 ChatGPT API: ${GREEN}$USE_OPENAI${NC}"
+    echo -e "🎤 TTS движок: ${GREEN}$TTS_ENGINE${NC}"
+    if [[ "$TTS_ENGINE" != "none" ]]; then
+        echo -e "🎤 TTS голос: ${GREEN}$TTS_VOICE${NC}"
+    fi
     echo -e "📦 Выбранные навыки: ${GREEN}$(cat /tmp/selected_skills)${NC}"
     echo -e "🕐 Часовой пояс: ${GREEN}$(cat /etc/timezone 2>/dev/null || echo "не задан")${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -1567,6 +1792,8 @@ MODEL="$MODEL"
 ALLOWED_USERS="$CHAT_ID $EXTRA_USERS"
 OLLAMA_URL="http://127.0.0.1:11434/api/generate"
 USE_OPENAI="$USE_OPENAI"
+TTS_ENGINE="$TTS_ENGINE"
+TTS_VOICE="$TTS_VOICE"
 EOF
     if [[ "$USE_OPENAI" == "true" ]]; then
         echo "OPENAI_API_KEY=\"$OPENAI_KEY\"" >> $CONFIG_FILE
@@ -1597,6 +1824,15 @@ EOF
     print_info "Настройка Python окружения..."
     sudo -u $JARVIS_USER python3 -m venv $JARVIS_DIR/venv
     sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install --quiet python-telegram-bot requests pillow pandas openpyxl python-docx google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+    # Установка TTS зависимостей
+    if [[ "$TTS_ENGINE" == "edge" ]]; then
+        print_info "Установка Edge TTS..."
+        sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install edge-tts
+    elif [[ "$TTS_ENGINE" == "silero" ]]; then
+        print_info "Установка Silero TTS..."
+        sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install torch soundfile
+    fi
 
     # Systemd сервис
     create_systemd_service
@@ -1647,6 +1883,7 @@ show_menu() {
     echo -e "  ${CYAN}12)${NC}  Показать логи"
     echo -e "  ${MAGENTA}13)${NC}  📦 Установить навыки из ClawHub"
     echo -e "  ${MAGENTA}14)${NC}  🕐 Настройка времени и NTP"
+    echo -e "  ${MAGENTA}15)${NC}  🎤 Настройка голосового ответа (TTS)"
     echo ""
     echo -e "  ${RED} 0)${NC}  Выход"
     echo ""
@@ -1720,6 +1957,18 @@ while true; do
         12) journalctl -u jarvis-bot -f ;;
         13) install_clawhub_skills ;;
         14) configure_time ;;
+        15) 
+            echo ""
+            read -p "👉 Выбрать TTS движок заново? (y/N): " reset_tts
+            if [[ "$reset_tts" == "y" || "$reset_tts" == "Y" ]]; then
+                select_tts_engine
+                sed -i "s/TTS_ENGINE=.*/TTS_ENGINE=\"$TTS_ENGINE\"/" $CONFIG_FILE
+                sed -i "s/TTS_VOICE=.*/TTS_VOICE=\"$TTS_VOICE\"/" $CONFIG_FILE
+                systemctl restart jarvis-bot
+                print_success "Настройки TTS обновлены"
+            fi
+            pause
+            ;;
         0) exit 0 ;;
         *) print_warning "Неверный выбор"; pause ;;
     esac
