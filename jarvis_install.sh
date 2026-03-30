@@ -2,7 +2,7 @@
 
 # ============================================
 # Джарвис - универсальный установщик Telegram бота
-# Версия: 4.0 - с поддержкой ClawHub навыков и настройкой времени
+# Версия: 4.0 - с поддержкой Grok (xAI) и ClawHub навыков
 # ============================================
 
 set -e
@@ -73,6 +73,9 @@ get_model_by_number() {
         32) echo "video-llava:7b" ;;
         33) echo "internvl2:8b" ;;
         34) echo "llava-next:7b" ;;
+        35) echo "grok-2:latest" ;;
+        36) echo "grok-3-api" ;;
+        37) echo "grok-3-lib" ;;
         *) echo "qwen2.5:1.5b" ;;
     esac
 }
@@ -83,7 +86,7 @@ get_model_by_number() {
 show_all_models() {
     clear
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}${BOLD}                              📦 ДОСТУПНЫЕ МОДЕЛИ (44 варианта)                              ${NC}"
+    echo -e "${CYAN}${BOLD}                              📦 ДОСТУПНЫЕ МОДЕЛИ (44+ варианта)                           ${NC}"
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo -e "  ${YELLOW}🧠 REASONING:${NC} 1.deepseek-r1:7b  2.deepseek-r1:8b  3.qwq:32b"
@@ -93,7 +96,11 @@ show_all_models() {
     echo -e "  ${YELLOW}🎨 МУЛЬТИМОДАЛЬНЫЕ:${NC} 15.llava:7b  16.llava-phi3:3.8b  17.moondream:1.8b  18.qwen3-vl:8b"
     echo -e "  ${YELLOW}🎵 АУДИО:${NC}       28.whisper:tiny  29.whisper:small  30.whisper:medium  31.whisper:large"
     echo -e "  ${YELLOW}🎥 ВИДЕО:${NC}       32.video-llava:7b  33.internvl2:8b  34.llava-next:7b"
-    echo -e "  ${YELLOW}🤖 CHATGPT:${NC}     35.ChatGPT(API)  36.ChatMock  37.GPT-OSS"
+    echo -e "  ${YELLOW}🤖 GROK (xAI):${NC}"
+    echo -e "    35. grok-2:latest     - 164GB (локально, требуется 128GB RAM)"
+    echo -e "    36. grok-3 (API)      - через API xAI (платно, есть бесплатный кредит)"
+    echo -e "    37. grok-3 (grok3api) - через библиотеку grok3api (бесплатно, без ключа)"
+    echo -e "  ${YELLOW}🤖 CHATGPT:${NC}     38.ChatGPT(API)  39.ChatMock  40.GPT-OSS"
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
@@ -108,12 +115,10 @@ configure_time() {
     echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    # Показываем текущее время и часовой пояс
     echo -e "${YELLOW}Текущее время на сервере:${NC} $(date)"
     echo -e "${YELLOW}Текущий часовой пояс:${NC} $(cat /etc/timezone 2>/dev/null || echo "не задан")"
     echo ""
 
-    # Список популярных часовых поясов
     echo -e "${CYAN}Выберите часовой пояс:${NC}"
     echo ""
     echo -e "  ${GREEN}1${NC}) Europe/Moscow     (Москва, UTC+3)"
@@ -124,8 +129,8 @@ configure_time() {
     echo -e "  ${GREEN}6${NC}) Asia/Vladivostok  (Владивосток, UTC+10)"
     echo -e "  ${GREEN}7${NC}) Europe/London     (Лондон, UTC+0)"
     echo -e "  ${GREEN}8${NC}) America/New_York  (Нью-Йорк, UTC-4)"
-    echo -e "  ${GREEN}9${NC}) Свой часовой пояс (введите в формате Continent/City)"
-    echo -e "  ${GREEN}0${NC}) Пропустить (оставить текущий)"
+    echo -e "  ${GREEN}9${NC}) Свой часовой пояс"
+    echo -e "  ${GREEN}0${NC}) Пропустить"
     echo ""
     read -p "👉 Выберите [0-9]: " timezone_choice
 
@@ -138,21 +143,14 @@ configure_time() {
         6) TIMEZONE="Asia/Vladivostok" ;;
         7) TIMEZONE="Europe/London" ;;
         8) TIMEZONE="America/New_York" ;;
-        9) 
-            echo ""
-            read -p "👉 Введите часовой пояс (например: Asia/Tokyo): " TIMEZONE
-            ;;
-        0) 
-            print_info "Часовой пояс не изменён"
-            TIMEZONE=""
-            ;;
+        9) read -p "👉 Введите часовой пояс: " TIMEZONE ;;
+        0) TIMEZONE="" ;;
         *) TIMEZONE="Europe/Moscow" ;;
     esac
 
     if [ -n "$TIMEZONE" ]; then
         print_info "Установка часового пояса: $TIMEZONE"
         timedatectl set-timezone $TIMEZONE 2>/dev/null || {
-            print_warning "Не удалось установить через timedatectl, пробую через ln..."
             rm -f /etc/localtime
             ln -s /usr/share/zoneinfo/$TIMEZONE /etc/localtime
             echo "$TIMEZONE" > /etc/timezone
@@ -166,18 +164,17 @@ configure_time() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
-    # Проверка наличия NTP сервисов
-    echo -e "${BLUE}Доступные NTP-серверы для синхронизации:${NC}"
+    echo -e "${BLUE}Доступные NTP-серверы:${NC}"
     echo ""
-    echo -e "  ${GREEN}1${NC}) pool.ntp.org           (стандартные серверы, автоматический выбор)"
-    echo -e "  ${GREEN}2${NC}) ru.pool.ntp.org        (российские серверы)"
-    echo -e "  ${GREEN}3${NC}) europe.pool.ntp.org    (европейские серверы)"
-    echo -e "  ${GREEN}4${NC}) time.google.com        (серверы Google)"
-    echo -e "  ${GREEN}5${NC}) time.cloudflare.com    (серверы Cloudflare)"
-    echo -e "  ${GREEN}6${NC}) Свои серверы (введите через пробел)"
-    echo -e "  ${GREEN}0${NC}) Пропустить (не настраивать синхронизацию)"
+    echo -e "  ${GREEN}1${NC}) pool.ntp.org           (стандартные)"
+    echo -e "  ${GREEN}2${NC}) ru.pool.ntp.org        (российские)"
+    echo -e "  ${GREEN}3${NC}) europe.pool.ntp.org    (европейские)"
+    echo -e "  ${GREEN}4${NC}) time.google.com        (Google)"
+    echo -e "  ${GREEN}5${NC}) time.cloudflare.com    (Cloudflare)"
+    echo -e "  ${GREEN}6${NC}) Свои серверы"
+    echo -e "  ${GREEN}0${NC}) Пропустить"
     echo ""
-    read -p "👉 Выберите NTP-сервер [0-6]: " ntp_choice
+    read -p "👉 Выберите [0-6]: " ntp_choice
 
     NTP_SERVERS=""
     case $ntp_choice in
@@ -186,57 +183,23 @@ configure_time() {
         3) NTP_SERVERS="europe.pool.ntp.org" ;;
         4) NTP_SERVERS="time.google.com" ;;
         5) NTP_SERVERS="time.cloudflare.com" ;;
-        6) 
-            echo ""
-            read -p "👉 Введите NTP-серверы через пробел: " NTP_SERVERS
-            ;;
-        0) print_info "Синхронизация времени не настроена" ;;
+        6) read -p "👉 Введите NTP-серверы: " NTP_SERVERS ;;
+        0) ;;
         *) NTP_SERVERS="pool.ntp.org" ;;
     esac
 
     if [ -n "$NTP_SERVERS" ]; then
-        print_info "Настройка синхронизации времени с $NTP_SERVERS..."
-        
-        # Установка chrony (современный NTP клиент)
+        print_info "Настройка синхронизации с $NTP_SERVERS..."
         if ! command -v chronyc &> /dev/null; then
-            print_info "Установка chrony..."
             apt install -y chrony
         fi
-        
-        # Настройка chrony
-        if [ -f /etc/chrony/chrony.conf ]; then
-            # Бэкап конфига
-            cp /etc/chrony/chrony.conf /etc/chrony/chrony.conf.bak
-            
-            # Очищаем старые серверы и добавляем новые
-            sed -i '/^server /d' /etc/chrony/chrony.conf
-            for server in $NTP_SERVERS; do
-                echo "server $server iburst" >> /etc/chrony/chrony.conf
-            done
-            
-            # Перезапуск chrony
-            systemctl restart chrony
-            sleep 2
-            
-            # Проверка синхронизации
-            if chronyc tracking &>/dev/null; then
-                print_success "Синхронизация времени настроена"
-                echo ""
-                chronyc sources -v
-            else
-                print_warning "Не удалось настроить chrony, пробую systemd-timesyncd..."
-                
-                # Альтернатива: systemd-timesyncd
-                if command -v timedatectl &> /dev/null; then
-                    timedatectl set-ntp true
-                    for server in $NTP_SERVERS; do
-                        echo "NTP=$server" >> /etc/systemd/timesyncd.conf
-                    done
-                    systemctl restart systemd-timesyncd
-                    print_success "Синхронизация через systemd-timesyncd настроена"
-                fi
-            fi
-        fi
+        cp /etc/chrony/chrony.conf /etc/chrony/chrony.conf.bak 2>/dev/null
+        sed -i '/^server /d' /etc/chrony/chrony.conf 2>/dev/null
+        for server in $NTP_SERVERS; do
+            echo "server $server iburst" >> /etc/chrony/chrony.conf
+        done
+        systemctl restart chrony
+        print_success "Синхронизация настроена"
     fi
 
     echo ""
@@ -254,41 +217,29 @@ select_skills() {
     echo -e "${CYAN}${BOLD}║${NC}                         🧩 ВЫБОР ПРОВАЙДЕРОВ НАВЫКОВ                             ${CYAN}${BOLD}║${NC}"
     echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "Выберите провайдеров для подключения (можно несколько):"
+    echo -e "Выберите провайдеров (можно несколько):"
     echo ""
-    echo -e "  ${GREEN}[ ] 1. GOOGLE${NC}        - Gmail, Календарь, Контакты, Таблицы, Диск"
-    echo -e "  ${GREEN}[ ] 2. ORACLE${NC}        - Базы данных, Object Storage, Compute"
-    echo -e "  ${GREEN}[ ] 3. MICROSOFT${NC}     - Outlook, Teams, OneDrive, Календарь"
-    echo -e "  ${GREEN}[ ] 4. AWS${NC}           - S3, EC2, Lambda, RDS"
-    echo -e "  ${GREEN}[ ] 5. GITHUB${NC}        - Репозитории, Issues, PR"
-    echo -e "  ${GREEN}[ ] 6. DOCKER/K8S${NC}    - Контейнеры, Kubernetes"
-    echo -e "  ${GREEN}[ ] 7. TELEGRAM${NC}      - Управление ботом"
-    echo -e "  ${GREEN}[ ] 8. WEATHER/NEWS${NC}  - Погода, новости"
-    echo -e "  ${GREEN}[ ] 9. CRYPTO${NC}        - Курсы валют, криптовалюты"
-    echo -e "  ${GREEN}[ ]10. SMART HOME${NC}    - Умный дом"
+    echo -e "  ${GREEN}[ ] 1. GOOGLE${NC}        - Gmail, Календарь, Контакты"
+    echo -e "  ${GREEN}[ ] 2. GITHUB${NC}        - Репозитории, Issues, PR"
+    echo -e "  ${GREEN}[ ] 3. CRYPTO${NC}        - Курсы валют, биткоин, эфир"
+    echo -e "  ${GREEN}[ ] 4. WEATHER/NEWS${NC}  - Погода, новости"
+    echo -e "  ${GREEN}[ ] 5. TELEGRAM${NC}      - Управление ботом"
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    read -p "👉 Введите номера через пробел (например: 1 5 8): " SKILLS_CHOICE
+    read -p "👉 Введите номера через пробел: " SKILLS_CHOICE
     
-    SELECTED_SKILLS=""
+    SELECTED_SKILLS="base"
     for num in $SKILLS_CHOICE; do
         case $num in
             1) SELECTED_SKILLS="$SELECTED_SKILLS google" ;;
-            2) SELECTED_SKILLS="$SELECTED_SKILLS oracle" ;;
-            3) SELECTED_SKILLS="$SELECTED_SKILLS microsoft" ;;
-            4) SELECTED_SKILLS="$SELECTED_SKILLS aws" ;;
-            5) SELECTED_SKILLS="$SELECTED_SKILLS github" ;;
-            6) SELECTED_SKILLS="$SELECTED_SKILLS docker" ;;
-            7) SELECTED_SKILLS="$SELECTED_SKILLS telegram" ;;
-            8) SELECTED_SKILLS="$SELECTED_SKILLS weather" ;;
-            9) SELECTED_SKILLS="$SELECTED_SKILLS crypto" ;;
-            10) SELECTED_SKILLS="$SELECTED_SKILLS smarthome" ;;
+            2) SELECTED_SKILLS="$SELECTED_SKILLS github" ;;
+            3) SELECTED_SKILLS="$SELECTED_SKILLS crypto" ;;
+            4) SELECTED_SKILLS="$SELECTED_SKILLS weather" ;;
+            5) SELECTED_SKILLS="$SELECTED_SKILLS telegram" ;;
         esac
     done
     
-    # Базовые навыки всегда включены
-    SELECTED_SKILLS="$SELECTED_SKILLS base"
     echo "$SELECTED_SKILLS" > /tmp/selected_skills
     print_success "Выбраны навыки: $SELECTED_SKILLS"
 }
@@ -303,51 +254,24 @@ show_clawhub_skills() {
     echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${GREEN}1${NC}) self-improving-agent  - самообучение, запоминает ошибки"
-    echo -e "  ${GREEN}2${NC}) ontology              - граф знаний, связи между данными"
-    echo -e "  ${GREEN}3${NC}) API Gateway           - 100+ API (Google, MS, GitHub, Slack)"
-    echo -e "  ${GREEN}4${NC}) Agent Browser         - автоматизация браузера"
-    echo -e "  ${GREEN}5${NC}) Obsidian              - работа с заметками Obsidian"
-    echo -e "  ${GREEN}6${NC}) Word / DOCX           - создание и редактирование документов"
-    echo -e "  ${GREEN}7${NC}) Excel / XLSX          - работа с таблицами Excel"
-    echo -e "  ${GREEN}8${NC}) Mcporter              - управление MCP серверами"
-    echo -e "  ${GREEN}9${NC}) Baidu Search          - поиск через Baidu"
-    echo -e "  ${GREEN}10${NC}) Все популярные навыки (рекомендуется)"
+    echo -e "  ${GREEN}2${NC}) API Gateway           - 100+ API (Google, GitHub, Slack)"
+    echo -e "  ${GREEN}3${NC}) Agent Browser         - автоматизация браузера"
+    echo -e "  ${GREEN}4${NC}) Obsidian              - работа с заметками"
+    echo -e "  ${GREEN}5${NC}) Word / DOCX           - создание документов"
+    echo -e "  ${GREEN}6${NC}) Excel / XLSX          - работа с таблицами"
+    echo -e "  ${GREEN}7${NC}) Все популярные навыки"
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    read -p "👉 Введите номера через пробел (например: 1 2 3): " CLAWHUB_CHOICE
+    read -p "👉 Введите номера через пробел: " CLAWHUB_CHOICE
     
-    # Если выбран вариант 10, показываем подтверждение
-    if [[ "$CLAWHUB_CHOICE" == *"10"* ]]; then
+    if [[ "$CLAWHUB_CHOICE" == *"7"* ]]; then
         echo ""
-        echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────────┐${NC}"
-        echo -e "${YELLOW}│  📦 ВЫБРАНЫ ВСЕ ПОПУЛЯРНЫЕ НАВЫКИ CLAWHUB                       │${NC}"
-        echo -e "${YELLOW}├─────────────────────────────────────────────────────────────────┤${NC}"
-        echo -e "│                                                                 │${NC}"
-        echo -e "│  Будут установлены следующие навыки:                           │${NC}"
-        echo -e "│                                                                 │${NC}"
-        echo -e "│  ✅ 1. self-improving-agent  - самообучение, запоминает ошибки  │${NC}"
-        echo -e "│  ✅ 2. ontology              - граф знаний                      │${NC}"
-        echo -e "│  ✅ 3. API Gateway           - 100+ API                         │${NC}"
-        echo -e "│  ✅ 4. Agent Browser         - автоматизация браузера           │${NC}"
-        echo -e "│  ✅ 5. Obsidian              - работа с заметками               │${NC}"
-        echo -e "│  ✅ 6. Word / DOCX           - создание документов              │${NC}"
-        echo -e "│  ✅ 7. Excel / XLSX          - работа с таблицами               │${NC}"
-        echo -e "│  ✅ 8. Mcporter              - управление MCP серверами         │${NC}"
-        echo -e "│  ✅ 9. Baidu Search          - поиск через Baidu                │${NC}"
-        echo -e "│                                                                 │${NC}"
-        echo -e "│  ⚠️  Установка всех навыков может занять 5-10 минут            │${NC}"
-        echo -e "│     и потребует ~500MB дополнительного места.                   │${NC}"
-        echo -e "│                                                                 │${NC}"
-        echo -e "└─────────────────────────────────────────────────────────────────┘${NC}"
-        echo ""
-        read -p "👉 Подтвердить установку всех навыков? (y/N): " confirm_all
-        if [[ "$confirm_all" != "y" && "$confirm_all" != "Y" ]]; then
-            print_info "Установка всех навыков отменена. Выберите конкретные."
-            show_clawhub_skills
-            return
+        echo -e "${YELLOW}Будут установлены все навыки (self-improving, API Gateway, Agent Browser, Obsidian, Word, Excel)${NC}"
+        read -p "👉 Подтвердить? (y/N): " confirm_all
+        if [[ "$confirm_all" == "y" || "$confirm_all" == "Y" ]]; then
+            CLAWHUB_CHOICE="1 2 3 4 5 6"
         fi
-        CLAWHUB_CHOICE="1 2 3 4 5 6 7 8 9"
     fi
     
     echo "$CLAWHUB_CHOICE" > /tmp/clawhub_selected
@@ -361,7 +285,6 @@ create_base_skills() {
     cat > $SKILLS_DIR/base.py << 'EOF'
 #!/usr/bin/env python3
 import subprocess
-import json
 import os
 import requests
 import re
@@ -376,9 +299,9 @@ def execute_shell(command, user_id):
         output = result.stdout if result.stdout else result.stderr
         if len(output) > 4000:
             output = output[:4000] + "\n\n... (обрезано)"
-        return output if output else "✅ Команда выполнена (нет вывода)"
+        return output if output else "✅ Команда выполнена"
     except subprocess.TimeoutExpired:
-        return "⏰ Команда выполнялась >30 сек, прервано"
+        return "⏰ Команда выполнялась >30 сек"
     except Exception as e:
         return f"❌ Ошибка: {e}"
 
@@ -405,17 +328,13 @@ def get_weather(city="Moscow"):
         response = requests.get(f"https://wttr.in/{city}?format=%C+%t+%w", timeout=10)
         if response.status_code == 200:
             return f"🌤️ {city}: {response.text.strip()}"
-        return f"❌ Не удалось получить погоду для {city}"
+        return f"❌ Не удалось получить погоду"
     except:
-        return "❌ Ошибка подключения к сервису погоды"
+        return "❌ Ошибка подключения"
 
 def search_web(query):
     try:
-        response = requests.get(
-            f"https://html.duckduckgo.com/html/?q={query}",
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=10
-        )
+        response = requests.get(f"https://html.duckduckgo.com/html/?q={query}", headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         results = re.findall(r'<a rel="nofollow" class="result-link" href="([^"]+)"', response.text)
         titles = re.findall(r'<a class="result-link" [^>]*><span[^>]*>([^<]+)</span>', response.text)
         output = f"🔍 Результаты поиска для '{query}':\n\n"
@@ -436,7 +355,7 @@ def add_reminder(user_id, text, seconds):
     t = threading.Thread(target=remind)
     t.daemon = True
     t.start()
-    return f"✅ Напоминание установлено на {seconds} сек: {text}"
+    return f"✅ Напоминание на {seconds} сек: {text}"
 
 def process_skills(text, user_id, skills_config, send_callback=None):
     text_lower = text.lower()
@@ -449,48 +368,41 @@ def process_skills(text, user_id, skills_config, send_callback=None):
     
     if text_lower.startswith('@cat '):
         if skills_config.get("file", True):
-            path = text[5:].strip()
-            return read_file(path)
+            return read_file(text[5:].strip())
         return "⛔ Навык 'file' отключён"
     
     if text_lower.startswith('@write '):
         if skills_config.get("file", True):
             parts = text[7:].split('||', 1)
             if len(parts) == 2:
-                path = parts[0].strip()
-                content = parts[1].strip()
-                return write_file(path, content)
-            return "❌ Формат: @write /путь/файла || содержание"
+                return write_file(parts[0].strip(), parts[1].strip())
+            return "❌ Формат: @write /путь || содержание"
         return "⛔ Навык 'file' отключён"
     
-    if 'погода' in text_lower or 'weather' in text_lower:
+    if 'погода' in text_lower:
         if skills_config.get("weather", True):
             city_match = re.search(r'(?:в|in)\s+([A-Za-zА-Яа-я-]+)', text)
             city = city_match.group(1) if city_match else "Moscow"
             return get_weather(city)
         return "⛔ Навык 'weather' отключён"
     
-    if text_lower.startswith('найди ') or text_lower.startswith('поиск ') or text_lower.startswith('search '):
+    if text_lower.startswith('найди ') or text_lower.startswith('поиск '):
         if skills_config.get("search", True):
-            query = text_lower.replace('найди ', '').replace('поиск ', '').replace('search ', '')
+            query = text_lower.replace('найди ', '').replace('поиск ', '')
             return search_web(query)
         return "⛔ Навык 'search' отключён"
     
-    if text_lower.startswith('напомни ') or text_lower.startswith('remind '):
+    if text_lower.startswith('напомни '):
         if skills_config.get("reminder", True):
-            parts = text_lower.replace('напомни ', '').replace('remind ', '').split(' через ', 1)
+            parts = text_lower.replace('напомни ', '').split(' через ', 1)
             if len(parts) == 2:
-                reminder_text = parts[0]
-                time_part = parts[1]
                 seconds = 60
-                if 'мин' in time_part:
-                    seconds = int(re.search(r'\d+', time_part).group()) * 60
-                elif 'сек' in time_part:
-                    seconds = int(re.search(r'\d+', time_part).group())
-                elif 'час' in time_part:
-                    seconds = int(re.search(r'\d+', time_part).group()) * 3600
-                return add_reminder(user_id, reminder_text, seconds)
-            return "❌ Формат: напомни [текст] через [время] (сек/мин/час)"
+                if 'мин' in parts[1]:
+                    seconds = int(re.search(r'\d+', parts[1]).group()) * 60
+                elif 'сек' in parts[1]:
+                    seconds = int(re.search(r'\d+', parts[1]).group())
+                return add_reminder(user_id, parts[0], seconds)
+            return "❌ Формат: напомни текст через 5 мин"
         return "⛔ Навык 'reminder' отключён"
     
     return None
@@ -516,14 +428,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-SCOPES = [
-    'https://www.googleapis.com/auth/gmail.readonly',
-    'https://www.googleapis.com/auth/gmail.send',
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/contacts.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly'
-]
-
+SCOPES = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/contacts.readonly']
 TOKEN_FILE = '/opt/jarvis/token.pickle'
 CREDS_FILE = '/opt/jarvis/credentials.json'
 
@@ -544,12 +449,12 @@ def get_google_creds():
             pickle.dump(creds, token)
     return creds
 
-def google_search_emails(query, max_results=5):
+def google_search_emails(query):
     creds = get_google_creds()
     if not creds:
         return "❌ Google не настроен. Поместите credentials.json в /opt/jarvis/"
     service = build('gmail', 'v1', credentials=creds)
-    results = service.users().messages().list(userId='me', q=query, maxResults=max_results).execute()
+    results = service.users().messages().list(userId='me', q=query, maxResults=5).execute()
     emails = []
     for msg in results.get('messages', []):
         msg_data = service.users().messages().get(userId='me', id=msg['id']).execute()
@@ -561,36 +466,21 @@ def google_send_email(to, subject, body):
     if not creds:
         return "❌ Google не настроен"
     service = build('gmail', 'v1', credentials=creds)
-    message = {
-        'raw': base64.urlsafe_b64encode(f"To: {to}\nSubject: {subject}\n\n{body}".encode()).decode()
-    }
+    message = {'raw': base64.urlsafe_b64encode(f"To: {to}\nSubject: {subject}\n\n{body}".encode()).decode()}
     service.users().messages().send(userId='me', body=message).execute()
     return f"✅ Письмо отправлено на {to}"
 
-def google_get_calendar_events(max_results=10):
+def google_get_calendar_events():
     creds = get_google_creds()
     if not creds:
         return "❌ Google не настроен"
     service = build('calendar', 'v3', credentials=creds)
-    events = service.events().list(calendarId='primary', maxResults=max_results).execute()
+    events = service.events().list(calendarId='primary', maxResults=10).execute()
     output = "📅 **Ближайшие события:**\n\n"
     for event in events.get('items', []):
         start = event['start'].get('dateTime', event['start'].get('date'))
         output += f"• {event['summary']} — {start}\n"
-    return output if output != "📅 **Ближайшие события:**\n\n" else "📭 Нет ближайших событий"
-
-def google_create_calendar_event(summary, start_time):
-    creds = get_google_creds()
-    if not creds:
-        return "❌ Google не настроен"
-    service = build('calendar', 'v3', credentials=creds)
-    event = {
-        'summary': summary,
-        'start': {'dateTime': start_time, 'timeZone': 'Europe/Moscow'},
-        'end': {'dateTime': start_time, 'timeZone': 'Europe/Moscow'},
-    }
-    event = service.events().insert(calendarId='primary', body=event).execute()
-    return f"✅ Событие создано: {event.get('htmlLink')}"
+    return output if output != "📅 **Ближайшие события:**\n\n" else "📭 Нет событий"
 
 def google_search_contacts(name):
     creds = get_google_creds()
@@ -609,28 +499,22 @@ def google_search_contacts(name):
 def process_google_skills(text, user_id):
     text_lower = text.lower()
     if 'почта от' in text_lower:
-        query = text_lower.replace('почта от', '').strip()
-        return google_search_emails(query)
+        return google_search_emails(text_lower.replace('почта от', '').strip())
     if text_lower.startswith('отправить письмо '):
         parts = text[17:].split(' тема: ', 1)
         if len(parts) == 2:
             to = parts[0].strip()
             rest = parts[1].split(' текст: ', 1)
             if len(rest) == 2:
-                subject = rest[0].strip()
-                body = rest[1].strip()
-                return google_send_email(to, subject, body)
+                return google_send_email(to, rest[0].strip(), rest[1].strip())
     if 'встреча' in text_lower:
         match = re.search(r'встреча\s+(.+?)\s+(.+)', text)
         if match:
-            summary = match.group(1)
-            time = match.group(2)
-            return google_create_calendar_event(summary, time)
+            return google_create_calendar_event(match.group(1), match.group(2))
     if 'календарь' in text_lower:
         return google_get_calendar_events()
     if 'контакт' in text_lower:
-        name = text_lower.replace('контакт', '').strip()
-        return google_search_contacts(name)
+        return google_search_contacts(text_lower.replace('контакт', '').strip())
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/google.py
@@ -649,11 +533,7 @@ GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
 
 def github_request(endpoint, method='GET', data=None):
     headers = {'Authorization': f'token {GITHUB_TOKEN}'} if GITHUB_TOKEN else {}
-    url = f'https://api.github.com{endpoint}'
-    if method == 'GET':
-        response = requests.get(url, headers=headers)
-    else:
-        response = requests.post(url, headers=headers, json=data)
+    response = requests.get(f'https://api.github.com{endpoint}', headers=headers) if method == 'GET' else requests.post(f'https://api.github.com{endpoint}', headers=headers, json=data)
     return response.json() if response.status_code == 200 else None
 
 def github_list_repos(user):
@@ -667,24 +547,19 @@ def github_list_repos(user):
 
 def github_create_issue(repo, title, body):
     result = github_request(f'/repos/{repo}/issues', 'POST', {'title': title, 'body': body})
-    if result and 'html_url' in result:
-        return f"✅ Issue создан: {result['html_url']}"
-    return "❌ Ошибка создания issue"
+    return f"✅ Issue создан: {result['html_url']}" if result and 'html_url' in result else "❌ Ошибка создания issue"
 
 def process_github_skills(text, user_id):
     text_lower = text.lower()
     if text_lower.startswith('репозитории '):
-        user = text_lower.replace('репозитории ', '').strip()
-        return github_list_repos(user)
+        return github_list_repos(text_lower.replace('репозитории ', '').strip())
     if text_lower.startswith('создать issue '):
         parts = text[14:].split(' || ', 1)
         if len(parts) == 2:
             repo = parts[0].strip()
             rest = parts[1].split(' || ', 1)
             if len(rest) == 2:
-                title = rest[0].strip()
-                body = rest[1].strip()
-                return github_create_issue(repo, title, body)
+                return github_create_issue(repo, rest[0].strip(), rest[1].strip())
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/github.py
@@ -703,19 +578,16 @@ def get_crypto_price(coin='bitcoin'):
         response = requests.get(f'https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies=usd,rub', timeout=10)
         if response.status_code == 200:
             data = response.json()
-            price_usd = data.get(coin, {}).get('usd', 0)
-            price_rub = data.get(coin, {}).get('rub', 0)
-            return f"💰 {coin.upper()}: ${price_usd:,.2f} / ₽{price_rub:,.2f}"
+            return f"💰 {coin.upper()}: ${data.get(coin, {}).get('usd', 0):,.2f} / ₽{data.get(coin, {}).get('rub', 0):,.2f}"
         return "❌ Не удалось получить курс"
     except:
         return "❌ Ошибка подключения"
 
-def get_currency_rate(currency='usd'):
+def get_currency_rate(currency='rub'):
     try:
         response = requests.get('https://api.exchangerate-api.com/v4/latest/USD', timeout=10)
         if response.status_code == 200:
-            data = response.json()
-            rate = data.get('rates', {}).get(currency.upper(), 0)
+            rate = response.json().get('rates', {}).get(currency.upper(), 0)
             return f"💵 USD/{currency.upper()}: {rate:.2f}"
         return "❌ Не удалось получить курс"
     except:
@@ -727,9 +599,7 @@ def process_crypto_skills(text, user_id):
         return get_crypto_price('bitcoin')
     if 'эфир' in text_lower or 'ethereum' in text_lower or 'eth' in text_lower:
         return get_crypto_price('ethereum')
-    if 'курс доллара' in text_lower or 'usd' in text_lower:
-        return get_currency_rate('rub')
-    if 'курс евро' in text_lower or 'eur' in text_lower:
+    if 'курс доллара' in text_lower:
         return get_currency_rate('rub')
     return None
 EOF
@@ -745,40 +615,18 @@ create_weather_skills() {
 import requests
 import re
 
-def get_weather_forecast(city="Moscow", days=3):
+def get_weather_forecast(city="Moscow"):
     try:
         response = requests.get(f"https://wttr.in/{city}?format=%C+%t+%w&m", timeout=10)
-        if response.status_code == 200:
-            return f"🌤️ {city}: {response.text.strip()}"
-        return f"❌ Не удалось получить погоду для {city}"
-    except:
-        return "❌ Ошибка подключения"
-
-def get_news(query=None):
-    try:
-        url = "https://newsapi.org/v2/top-headlines?country=ru&pageSize=5"
-        if query:
-            url = f"https://newsapi.org/v2/everything?q={query}&pageSize=5"
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            output = f"📰 **Новости{' по запросу ' + query if query else ''}:**\n\n"
-            for article in data.get('articles', []):
-                output += f"• {article['title']}\n  {article['url']}\n\n"
-            return output
-        return "❌ Не удалось получить новости"
+        return f"🌤️ {city}: {response.text.strip()}" if response.status_code == 200 else f"❌ Не удалось получить погоду"
     except:
         return "❌ Ошибка подключения"
 
 def process_weather_skills(text, user_id):
     text_lower = text.lower()
-    if 'погода' in text_lower or 'weather' in text_lower:
+    if 'погода' in text_lower:
         city_match = re.search(r'(?:в|in)\s+([A-Za-zА-Яа-я-]+)', text)
-        city = city_match.group(1) if city_match else "Moscow"
-        return get_weather_forecast(city)
-    if 'новости' in text_lower or 'news' in text_lower:
-        query = text_lower.replace('новости', '').replace('news', '').strip()
-        return get_news(query if query else None)
+        return get_weather_forecast(city_match.group(1) if city_match else "Moscow")
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/weather.py
@@ -790,12 +638,11 @@ EOF
 create_telegram_skills() {
     cat > $SKILLS_DIR/telegram.py << 'EOF'
 #!/usr/bin/env python3
-import json
 import os
 
 CONFIG_FILE = "/opt/jarvis/config.env"
 
-def add_telegram_user(user_id, chat_id):
+def add_telegram_user(user_id):
     try:
         with open(CONFIG_FILE, 'r') as f:
             lines = f.readlines()
@@ -833,24 +680,20 @@ def process_telegram_skills(text, user_id, is_admin):
         return None
     text_lower = text.lower()
     if text_lower.startswith('adduser '):
-        new_user = text_lower.replace('adduser ', '').strip()
-        return add_telegram_user(new_user, None)
+        return add_telegram_user(text_lower.replace('adduser ', '').strip())
     if text_lower.startswith('deluser '):
-        del_user = text_lower.replace('deluser ', '').strip()
-        return remove_telegram_user(del_user)
+        return remove_telegram_user(text_lower.replace('deluser ', '').strip())
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/telegram.py
 }
 
 # ============================================
-# СОЗДАНИЕ АДАПТЕРОВ CLAWHUB
+# АДАПТЕРЫ CLAWHUB
 # ============================================
 create_self_improving_adapter() {
     cat > $SKILLS_DIR/self_improving.py << 'EOF'
 #!/usr/bin/env python3
-import json
-import os
 import sqlite3
 from datetime import datetime
 
@@ -859,22 +702,15 @@ DB_PATH = "/opt/jarvis/clawhub_skills/self_improving.db"
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS learnings
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  user_question TEXT,
-                  bot_answer TEXT,
-                  user_correction TEXT,
-                  improved_answer TEXT,
-                  created_at TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS learnings (id INTEGER PRIMARY KEY AUTOINCREMENT, user_question TEXT, improved_answer TEXT, created_at TEXT)''')
     conn.commit()
     conn.close()
 
-def save_learning(question, answer, correction, improved):
+def save_learning(question, answer):
     init_db()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO learnings (user_question, bot_answer, user_correction, improved_answer, created_at) VALUES (?, ?, ?, ?, ?)",
-              (question, answer, correction, improved, datetime.now().isoformat()))
+    c.execute("INSERT INTO learnings (user_question, improved_answer, created_at) VALUES (?, ?, ?)", (question, answer, datetime.now().isoformat()))
     conn.commit()
     conn.close()
 
@@ -882,21 +718,17 @@ def get_improved_answer(question):
     init_db()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT improved_answer FROM learnings WHERE user_question LIKE ? ORDER BY created_at DESC LIMIT 1",
-              (f'%{question}%',))
+    c.execute("SELECT improved_answer FROM learnings WHERE user_question LIKE ? ORDER BY created_at DESC LIMIT 1", (f'%{question}%',))
     row = c.fetchone()
     conn.close()
     return row[0] if row else None
 
 def process_self_improving(text, user_id):
-    text_lower = text.lower()
-    if text_lower.startswith('запомни '):
+    if text.lower().startswith('запомни '):
         parts = text[8:].split(' || ', 1)
         if len(parts) == 2:
-            question = parts[0].strip()
-            answer = parts[1].strip()
-            save_learning(question, "", "", answer)
-            return f"✅ Запомнил: {question} -> {answer}"
+            save_learning(parts[0].strip(), parts[1].strip())
+            return f"✅ Запомнил: {parts[0]} -> {parts[1]}"
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/self_improving.py
@@ -911,43 +743,24 @@ import os
 
 CONFIG_FILE = "/opt/jarvis/clawhub_skills/api_config.json"
 
-def load_api_config():
+def call_api(service, endpoint):
+    config = {}
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
-            return json.load(f)
-    return {}
-
-def save_api_config(config):
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(config, f, indent=2)
-
-def call_api(service, endpoint, method='GET', data=None):
-    config = load_api_config()
+            config = json.load(f)
     if service not in config:
-        return f"❌ Сервис {service} не настроен. Используйте /setup_api {service}"
-
-    base_url = config[service].get('base_url')
-    api_key = config[service].get('api_key')
-    
-    headers = {'Authorization': f'Bearer {api_key}'} if api_key else {}
-    
+        return f"❌ Сервис {service} не настроен"
     try:
-        if method == 'GET':
-            response = requests.get(f"{base_url}{endpoint}", headers=headers, timeout=30)
-        else:
-            response = requests.post(f"{base_url}{endpoint}", headers=headers, json=data, timeout=30)
+        response = requests.get(f"{config[service].get('base_url')}{endpoint}", headers={'Authorization': f"Bearer {config[service].get('api_key')}"}, timeout=30)
         return response.json() if response.status_code == 200 else f"❌ Ошибка API: {response.status_code}"
     except Exception as e:
         return f"❌ Ошибка: {e}"
 
 def process_api_gateway(text, user_id):
-    text_lower = text.lower()
-    if text_lower.startswith('api '):
-        parts = text[4:].split(' ', 2)
-        if len(parts) >= 2:
-            service = parts[0]
-            endpoint = parts[1]
-            return call_api(service, endpoint)
+    if text.lower().startswith('api '):
+        parts = text[4:].split(' ', 1)
+        if len(parts) == 2:
+            return call_api(parts[0], parts[1])
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/api_gateway.py
@@ -957,21 +770,16 @@ create_browser_adapter() {
     cat > $SKILLS_DIR/agent_browser.py << 'EOF'
 #!/usr/bin/env python3
 import subprocess
-import json
 
 def browser_navigate(url):
     try:
         result = subprocess.run(['curl', '-s', '-L', url], capture_output=True, text=True, timeout=30)
-        if result.returncode == 0:
-            content = result.stdout[:2000]
-            return f"🌐 {url}\n\n{content[:1000]}..."
-        return "❌ Ошибка загрузки страницы"
+        return f"🌐 {url}\n\n{result.stdout[:1000]}..." if result.returncode == 0 else "❌ Ошибка загрузки"
     except Exception as e:
-        return f"❌ Ошибка браузера: {e}"
+        return f"❌ Ошибка: {e}"
 
 def process_browser_skills(text, user_id):
-    text_lower = text.lower()
-    if text_lower.startswith('открыть '):
+    if text.lower().startswith('открыть '):
         url = text[8:].strip()
         if not url.startswith('http'):
             url = 'https://' + url
@@ -987,29 +795,17 @@ create_excel_adapter() {
 import pandas as pd
 import os
 
-def excel_read(file_path, sheet_name=0):
+def excel_read(file_path):
+    if not os.path.exists(file_path):
+        return f"❌ Файл {file_path} не найден"
     try:
-        if not os.path.exists(file_path):
-            return f"❌ Файл {file_path} не найден"
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
-        return df.head(20).to_string()
+        return pd.read_excel(file_path).head(20).to_string()
     except Exception as e:
-        return f"❌ Ошибка чтения Excel: {e}"
-
-def excel_create(file_path, data):
-    try:
-        df = pd.DataFrame(data)
-        df.to_excel(file_path, index=False)
-        return f"✅ Файл {file_path} создан"
-    except Exception as e:
-        return f"❌ Ошибка создания Excel: {e}"
+        return f"❌ Ошибка: {e}"
 
 def process_excel_skills(text, user_id):
-    text_lower = text.lower()
-    if text_lower.startswith('excel '):
-        parts = text[6:].split(' ', 1)
-        if parts[0] == 'read' and len(parts) > 1:
-            return excel_read(parts[1])
+    if text.lower().startswith('excel read '):
+        return excel_read(text[10:].strip())
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/excel.py
@@ -1022,22 +818,17 @@ import os
 import docx
 
 def word_read(file_path):
+    if not os.path.exists(file_path):
+        return f"❌ Файл {file_path} не найден"
     try:
-        if not os.path.exists(file_path):
-            return f"❌ Файл {file_path} не найден"
         doc = docx.Document(file_path)
-        text = []
-        for para in doc.paragraphs[:50]:
-            text.append(para.text)
-        return '\n'.join(text) if text else "(документ пуст)"
+        return '\n'.join([p.text for p in doc.paragraphs[:50]]) or "(документ пуст)"
     except Exception as e:
-        return f"❌ Ошибка чтения Word: {e}"
+        return f"❌ Ошибка: {e}"
 
 def process_word_skills(text, user_id):
-    text_lower = text.lower()
-    if text_lower.startswith('word read '):
-        path = text[10:].strip()
-        return word_read(path)
+    if text.lower().startswith('word read '):
+        return word_read(text[10:].strip())
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/word.py
@@ -1051,23 +842,16 @@ from datetime import datetime
 
 VAULT_PATH = "/opt/jarvis/clawhub_skills/obsidian_vault"
 
-def init_vault():
+def create_note(content):
     os.makedirs(VAULT_PATH, exist_ok=True)
-
-def create_note(title, content):
-    init_vault()
-    filename = f"{title.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-    filepath = os.path.join(VAULT_PATH, filename)
-    with open(filepath, 'w') as f:
-        f.write(f"# {title}\n\n{content}\n\nСоздано: {datetime.now()}")
-    return f"✅ Заметка создана: {filepath}"
+    filename = f"note_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+    with open(os.path.join(VAULT_PATH, filename), 'w') as f:
+        f.write(f"# {content[:50]}\n\n{content}\n\nСоздано: {datetime.now()}")
+    return f"✅ Заметка создана: {filename}"
 
 def process_obsidian_skills(text, user_id):
-    text_lower = text.lower()
-    if text_lower.startswith('obsidian заметка '):
-        content = text[17:].strip()
-        title = content[:50]
-        return create_note(title, content)
+    if text.lower().startswith('obsidian заметка '):
+        return create_note(text[17:].strip())
     return None
 EOF
     chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/obsidian.py
@@ -1078,29 +862,23 @@ EOF
 # ============================================
 install_clawhub_skills() {
     show_clawhub_skills
-    
     SELECTED=$(cat /tmp/clawhub_selected)
     
-    # Создаём директорию для ClawHub
     mkdir -p $JARVIS_DIR/clawhub_skills
     
     for num in $SELECTED; do
         case $num in
             1) create_self_improving_adapter; print_success "  ✅ self-improving-agent установлен" ;;
-            2) print_info "  ⏳ ontology (граф знаний) - требует дополнительной настройки";;
-            3) create_api_gateway_adapter; print_success "  ✅ API Gateway установлен" ;;
-            4) create_browser_adapter; print_success "  ✅ Agent Browser установлен" ;;
-            5) create_obsidian_adapter; print_success "  ✅ Obsidian установлен" ;;
-            6) create_word_adapter; print_success "  ✅ Word / DOCX установлен" ;;
-            7) create_excel_adapter; print_success "  ✅ Excel / XLSX установлен" ;;
-            8) print_info "  ⏳ Mcporter - требует дополнительной настройки";;
-            9) print_info "  ⏳ Baidu Search - требует API ключ";;
+            2) create_api_gateway_adapter; print_success "  ✅ API Gateway установлен" ;;
+            3) create_browser_adapter; print_success "  ✅ Agent Browser установлен" ;;
+            4) create_obsidian_adapter; print_success "  ✅ Obsidian установлен" ;;
+            5) create_word_adapter; print_success "  ✅ Word / DOCX установлен" ;;
+            6) create_excel_adapter; print_success "  ✅ Excel / XLSX установлен" ;;
         esac
     done
     
-    # Установка Python зависимостей для навыков
-    if [[ "$SELECTED" == *"6"* ]] || [[ "$SELECTED" == *"7"* ]]; then
-        print_info "Установка дополнительных Python библиотек..."
+    if [[ "$SELECTED" == *"5"* ]] || [[ "$SELECTED" == *"6"* ]]; then
+        print_info "Установка дополнительных библиотек..."
         sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install --quiet pandas openpyxl python-docx
     fi
     
@@ -1120,7 +898,6 @@ import json
 import requests
 import base64
 import subprocess
-import importlib
 import importlib.util
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -1146,8 +923,11 @@ OLLAMA_URL = config.get("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 USE_OPENAI = config.get("USE_OPENAI", "false") == "true"
 OPENAI_KEY = config.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = config.get("OPENAI_MODEL", "gpt-4o-mini")
+USE_XAI = config.get("USE_XAI", "false") == "true"
+XAI_API_KEY = config.get("XAI_API_KEY", "")
+USE_GROK3API = config.get("USE_GROK3API", "false") == "true"
 
-# Загрузка всех навыков
+# Загрузка навыков
 skills_modules = {}
 skills_config = {"system": True, "file": True, "weather": True, "search": True, "reminder": True}
 
@@ -1248,8 +1028,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "stream": False
         }, timeout=120)
         if response.status_code == 200:
-            reply = response.json().get("response", "Не могу описать")
-            await update.message.reply_text(reply)
+            await update.message.reply_text(response.json().get("response", "Не могу описать"))
         else:
             await update.message.reply_text("⚠️ Ошибка обработки")
     except Exception as e:
@@ -1362,19 +1141,43 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Обычный диалог с ИИ
     await update.message.reply_chat_action("typing")
     try:
-        if USE_OPENAI and OPENAI_KEY:
+        # Grok 3 API
+        if USE_XAI and XAI_API_KEY:
+            response = requests.post(
+                "https://api.x.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {XAI_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "grok-3",
+                    "messages": [{"role": "user", "content": user_text}],
+                    "max_tokens": 1000
+                },
+                timeout=60
+            )
+            if response.status_code == 200:
+                reply = response.json().get("choices", [{}])[0].get("message", {}).get("content", "Нет ответа")
+                await update.message.reply_text(reply)
+            else:
+                await update.message.reply_text(f"⚠️ Ошибка Grok API: {response.status_code}")
+        
+        # Grok 3 через grok3api
+        elif USE_GROK3API:
+            from grok3api.client import GrokClient
+            client = GrokClient()
+            result = client.ask(user_text)
+            await update.message.reply_text(result.modelResponse.message)
+        
+        # OpenAI API
+        elif USE_OPENAI and OPENAI_KEY:
             import openai
             openai.api_key = OPENAI_KEY
             response = openai.ChatCompletion.create(
                 model=OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "Ты Джарвис. Отвечай кратко и по делу."},
-                    {"role": "user", "content": user_text}
-                ],
+                messages=[{"role": "user", "content": user_text}],
                 timeout=60
             )
-            reply = response.choices[0].message.content
-            await update.message.reply_text(reply)
+            await update.message.reply_text(response.choices[0].message.content)
+        
+        # Локальная Ollama
         else:
             response = requests.post(OLLAMA_URL, json={
                 "model": MODEL,
@@ -1382,8 +1185,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "stream": False
             }, timeout=120)
             if response.status_code == 200:
-                reply = response.json().get("response", "Не могу ответить")
-                await update.message.reply_text(reply)
+                await update.message.reply_text(response.json().get("response", "Не могу ответить"))
             else:
                 await update.message.reply_text("⚠️ Ошибка модели")
     except Exception as e:
@@ -1517,13 +1319,21 @@ install_jarvis() {
     echo -e "│  ${GREEN}8${NC}) Своя модель                                           │"
     echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
     echo ""
+    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│                    🤖 GROK (xAI)                            │${NC}"
+    echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
+    echo -e "│  ${GREEN}9${NC}) grok-2:latest     - локально (164GB, требует 128GB RAM) │"
+    echo -e "│  ${GREEN}10${NC}) grok-3 (API)      - через API xAI (платно)            │"
+    echo -e "│  ${GREEN}11${NC}) grok-3 (grok3api) - через библиотеку (бесплатно)      │"
+    echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
     
     TOTAL_RAM=$(free -g | awk '/^Mem:/{print $2}')
     FREE_RAM=$(free -g | awk '/^Mem:/{print $7}')
     echo -e "${BLUE}💾 Ваш сервер:${NC} ${TOTAL_RAM}GB RAM (свободно ~${FREE_RAM}GB)"
     echo ""
     
-    read -p "👉 Выберите [1-8]: " MODEL_CHOICE
+    read -p "👉 Выберите [1-11]: " MODEL_CHOICE
     
     case $MODEL_CHOICE in
         1) MODEL="qwen2.5:1.5b" ;;
@@ -1540,6 +1350,9 @@ install_jarvis() {
         8) 
             read -p "👉 Введите название модели: " MODEL
             ;;
+        9) MODEL="grok-2:latest" ;;
+        10) MODEL="grok-3-api" ;;
+        11) MODEL="grok-3-lib" ;;
         *) MODEL="qwen2.5:1.5b" ;;
     esac
 
@@ -1576,15 +1389,131 @@ install_jarvis() {
     echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
     echo -e "${YELLOW}│                    🦞 CLAWHUB НАВЫКИ                        │${NC}"
     echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
-    echo -e "│ Навыки из ClawHub — готовые расширения для ИИ:                     │"
-    echo -e "│ - самообучение, граф знаний, 100+ API, браузер, Excel, Word и др. │"
+    echo -e "│ Навыки из ClawHub — самообучение, API, браузер, Excel, Word и др. │"
     echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
     echo ""
     read -p "👉 Установить навыки из ClawHub? (y/N): " install_clawhub
     if [[ "$install_clawhub" == "y" || "$install_clawhub" == "Y" ]]; then
         install_clawhub_skills
     fi
-    
+
+    # ============================================
+    # УСТАНОВКА GROK
+    # ============================================
+    if [[ "$MODEL" == "grok-2:latest" ]]; then
+        echo ""
+        echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${CYAN}│                    🦞 УСТАНОВКА GROK 2                      │${NC}"
+        echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "│  ⚠️  ВНИМАНИЕ! Модель весит 164GB и требует 128GB RAM           │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  🔧 Требования:                                             │${NC}"
+        echo -e "│     - RAM: минимум 128GB                                     │${NC}"
+        echo -e "│     - Диск: минимум 200GB свободного места                  │${NC}"
+        echo -e "│     - CPU: 8+ ядер (рекомендуется)                          │${NC}"
+        echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        
+        FREE_DISK=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
+        
+        if [ "$TOTAL_RAM" -lt 120 ]; then
+            print_warning "У вас всего ${TOTAL_RAM}GB RAM, а требуется 128GB+"
+            read -p "Продолжить установку? (y/N): " continue_grok
+            if [[ "$continue_grok" != "y" && "$continue_grok" != "Y" ]]; then
+                print_info "Установка отменена. Выберите другой вариант."
+                exit 1
+            fi
+        fi
+        
+        if [ "$FREE_DISK" -lt 200 ]; then
+            print_warning "У вас всего ${FREE_DISK}GB свободного диска, а требуется 200GB+"
+            read -p "Продолжить установку? (y/N): " continue_grok
+            if [[ "$continue_grok" != "y" && "$continue_grok" != "Y" ]]; then
+                print_info "Установка отменена. Выберите другой вариант."
+                exit 1
+            fi
+        fi
+        
+        print_info "Скачивание Grok 2 (это займёт много времени и места)..."
+        ollama pull MichelRosselli/grok-2:Q4_K_M
+        
+    elif [[ "$MODEL" == "grok-3-api" ]]; then
+        echo ""
+        echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${CYAN}│                    🦞 GROK 3 (API xAI)                      │${NC}"
+        echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "│  🔑 ДЛЯ ПОДКЛЮЧЕНИЯ НУЖЕН API-КЛЮЧ xAI:                         │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  1. Перейдите на https://console.x.ai                       │${NC}"
+        echo -e "│  2. Зарегистрируйтесь / войдите                             │${NC}"
+        echo -e "│  3. Создайте новый API-ключ                                 │${NC}"
+        echo -e "│  4. Скопируйте ключ (начинается с xai-...)                  │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  💰 Стоимость:                                              │${NC}"
+        echo -e "│     - Grok 3: $3 за 1M токенов                              │${NC}"
+        echo -e "│     - Бесплатный кредит: $5 при регистрации                 │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  🌐 Подробнее: https://docs.x.ai/api                        │${NC}"
+        echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        read -p "👉 Введите API-ключ xAI: " XAI_KEY
+        
+        if [ -n "$XAI_KEY" ]; then
+            echo "USE_XAI=true" >> $CONFIG_FILE
+            echo "XAI_API_KEY=\"$XAI_KEY\"" >> $CONFIG_FILE
+            print_success "API-ключ xAI сохранён"
+        else
+            print_warning "API-ключ не введён, Grok 3 API не будет использоваться"
+        fi
+        
+    elif [[ "$MODEL" == "grok-3-lib" ]]; then
+        echo ""
+        echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${CYAN}│                    🦞 GROK 3 (grok3api)                     │${NC}"
+        echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "│  🔧 ДЛЯ ПОДКЛЮЧЕНИЯ НУЖЕН БРАУЗЕР GOOGLE CHROME:                │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  📌 Библиотека grok3api автоматически получает cookies      │${NC}"
+        echo -e "│     из вашего браузера и работает с Grok 3.                 │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  ⚙️  Требования:                                            │${NC}"
+        echo -e "│     - Установленный Google Chrome                           │${NC}"
+        echo -e "│     - Активная сессия в x.ai (войдите один раз)             │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  ✅ Плюсы:                                                  │${NC}"
+        echo -e "│     - Полностью бесплатно                                   │${NC}"
+        echo -e "│     - Поддержка генерации изображений                       │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  ⚠️  Минусы:                                                │${NC}"
+        echo -e "│     - Требуется Google Chrome                               │${NC}"
+        echo -e "│     - Может быть нестабильно при смене cookies              │${NC}"
+        echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        
+        read -p "👉 Установить Google Chrome и grok3api? (y/N): " install_grok_lib
+        if [[ "$install_grok_lib" == "y" || "$install_grok_lib" == "Y" ]]; then
+            print_info "Установка Google Chrome..."
+            wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+            echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+            apt update
+            apt install -y google-chrome-stable
+            
+            print_info "Установка grok3api..."
+            sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install grok3api
+            
+            echo "USE_GROK3API=true" >> $CONFIG_FILE
+            print_success "grok3api установлен"
+            
+            echo ""
+            echo -e "${YELLOW}👉 Первый запуск:${NC}"
+            echo "   Для авторизации выполните:"
+            echo "   sudo -u $JARVIS_USER python3 -c 'from grok3api.client import GrokClient; GrokClient()'"
+            echo "   Откроется браузер, войдите в свой аккаунт x.ai"
+        else
+            print_warning "Установка grok3api пропущена"
+        fi
+    fi
+
     # Подтверждение
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -1616,8 +1545,11 @@ install_jarvis() {
         curl -fsSL https://ollama.com/install.sh | sh
     fi
 
-    print_info "Загрузка модели $MODEL..."
-    ollama pull $MODEL
+    # Скачиваем модель только если это не Grok API варианты
+    if [[ "$MODEL" != "grok-3-api" && "$MODEL" != "grok-3-lib" ]]; then
+        print_info "Загрузка модели $MODEL..."
+        ollama pull $MODEL
+    fi
 
     if [[ "$MODEL" == *"llava"* ]] || [[ "$MODEL" == *"moondream"* ]]; then
         print_info "Скачивание whisper для голоса..."
