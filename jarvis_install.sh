@@ -527,6 +527,7 @@ EOF
 # СОЗДАНИЕ GOOGLE НАВЫКОВ
 # ============================================
 create_google_skills() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/google.py << 'EOF'
 #!/usr/bin/env python3
 import os
@@ -647,6 +648,7 @@ EOF
 # СОЗДАНИЕ GITHUB НАВЫКОВ
 # ============================================
 create_github_skills() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/github.py << 'EOF'
 #!/usr/bin/env python3
 import requests
@@ -692,6 +694,7 @@ EOF
 # СОЗДАНИЕ CRYPTO НАВЫКОВ
 # ============================================
 create_crypto_skills() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/crypto.py << 'EOF'
 #!/usr/bin/env python3
 import requests
@@ -733,6 +736,7 @@ EOF
 # СОЗДАНИЕ WEATHER НАВЫКОВ
 # ============================================
 create_weather_skills() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/weather.py << 'EOF'
 #!/usr/bin/env python3
 import requests
@@ -759,6 +763,7 @@ EOF
 # СОЗДАНИЕ TELEGRAM УПРАВЛЕНИЯ
 # ============================================
 create_telegram_skills() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/telegram.py << 'EOF'
 #!/usr/bin/env python3
 import os
@@ -815,6 +820,7 @@ EOF
 # АДАПТЕРЫ CLAWHUB
 # ============================================
 create_self_improving_adapter() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/self_improving.py << 'EOF'
 #!/usr/bin/env python3
 import sqlite3
@@ -858,6 +864,7 @@ EOF
 }
 
 create_api_gateway_adapter() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/api_gateway.py << 'EOF'
 #!/usr/bin/env python3
 import requests
@@ -890,6 +897,7 @@ EOF
 }
 
 create_browser_adapter() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/agent_browser.py << 'EOF'
 #!/usr/bin/env python3
 import subprocess
@@ -913,6 +921,7 @@ EOF
 }
 
 create_excel_adapter() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/excel.py << 'EOF'
 #!/usr/bin/env python3
 import pandas as pd
@@ -935,6 +944,7 @@ EOF
 }
 
 create_word_adapter() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/word.py << 'EOF'
 #!/usr/bin/env python3
 import os
@@ -958,6 +968,7 @@ EOF
 }
 
 create_obsidian_adapter() {
+    mkdir -p $SKILLS_DIR
     cat > $SKILLS_DIR/obsidian.py << 'EOF'
 #!/usr/bin/env python3
 import os
@@ -987,7 +998,9 @@ install_clawhub_skills() {
     show_clawhub_skills
     SELECTED=$(cat /tmp/clawhub_selected)
     
+    # Создаём директории ДО создания файлов
     mkdir -p $JARVIS_DIR/clawhub_skills
+    mkdir -p $SKILLS_DIR
     
     for num in $SELECTED; do
         case $num in
