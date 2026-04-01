@@ -1179,15 +1179,28 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subprocess.run(["ffmpeg", "-i", voice_path, "-ar", "16000", "-ac", "1", wav_path, "-y"], 
                       capture_output=True)
         
-        # 3. Распознаём речь через Whisper
-        whisper_response = requests.post("http://127.0.0.1:11434/api/generate", json={
-            "model": "whisper:tiny",
-            "prompt": "",
-            "file": wav_path,
-            "stream": False
-        }, timeout=60)
-        
-        recognized_text = whisper_response.json().get("response", "") if whisper_response.status_code == 200 else ""
+        # 3. Распознаём речь через whisper (Python библиотека)
+        recognized_text = ""
+        try:
+            import whisper
+            model = whisper.load_model("tiny")
+            result = model.transcribe(wav_path, language="ru")
+            recognized_text = result["text"]
+        except ImportError:
+            # Если whisper не установлен, пробуем через Ollama
+            try:
+                whisper_response = requests.post("http://127.0.0.1:11434/api/generate", json={
+                    "model": "whisper",
+                    "prompt": "",
+                    "file": wav_path,
+                    "stream": False
+                }, timeout=60)
+                recognized_text = whisper_response.json().get("response", "") if whisper_response.status_code == 200 else ""
+            except:
+                recognized_text = ""
+        except Exception as e:
+            print(f"Whisper error: {e}")
+            recognized_text = ""
         
         if not recognized_text:
             await update.message.reply_text("🎤 Не удалось распознать речь")
@@ -1585,12 +1598,13 @@ install_jarvis() {
     echo -e "${YELLOW}├─────────────────────────────────────────────────────────────┤${NC}"
     echo -e "│ Использовать ChatGPT через API? (платно)                          │"
     echo -e "│ Ключ: https://platform.openai.com/api-keys                        │"
+    echo -e "│ Модели: gpt-4o-mini (~$0.15/1M токенов) или gpt-4o (~$2.50/1M)  │"
     echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
     echo ""
     read -p "👉 Использовать ChatGPT API? (y/N): " use_openai
     if [[ "$use_openai" == "y" || "$use_openai" == "Y" ]]; then
-        read -p "👉 OpenAI API ключ: " OPENAI_KEY
-        read -p "👉 Модель (gpt-4o-mini/gpt-4o): " OPENAI_MODEL
+        read -p "👉 Введите OpenAI API ключ: " OPENAI_KEY
+        read -p "👉 Модель (gpt-4o-mini / gpt-4o): " OPENAI_MODEL
         USE_OPENAI="true"
     else
         USE_OPENAI="false"
@@ -1635,11 +1649,7 @@ install_jarvis() {
         echo -e "${CYAN}│                    🦞 УСТАНОВКА GROK 2                      │${NC}"
         echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
         echo -e "│  ⚠️  ВНИМАНИЕ! Модель весит 164GB и требует 128GB RAM           │${NC}"
-        echo -e "│                                                             │${NC}"
-        echo -e "│  🔧 Требования:                                             │${NC}"
-        echo -e "│     - RAM: минимум 128GB                                     │${NC}"
-        echo -e "│     - Диск: минимум 200GB свободного места                  │${NC}"
-        echo -e "│     - CPU: 8+ ядер (рекомендуется)                          │${NC}"
+        echo -e "│  🔧 Требования: RAM: 128GB+, Диск: 200GB+, CPU: 8+ ядер        │${NC}"
         echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
         echo ""
         
@@ -1678,10 +1688,7 @@ install_jarvis() {
         echo -e "│  3. Создайте новый API-ключ                                 │${NC}"
         echo -e "│  4. Скопируйте ключ (начинается с xai-...)                  │${NC}"
         echo -e "│                                                             │${NC}"
-        echo -e "│  💰 Стоимость:                                              │${NC}"
-        echo -e "│     - Grok 3: $3 за 1M токенов                              │${NC}"
-        echo -e "│     - Бесплатный кредит: $5 при регистрации                 │${NC}"
-        echo -e "│                                                             │${NC}"
+        echo -e "│  💰 Стоимость: Grok 3: $3 за 1M токенов, $5 кредит при рег.│${NC}"
         echo -e "│  🌐 Подробнее: https://docs.x.ai/api                        │${NC}"
         echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
         echo ""
@@ -1701,21 +1708,10 @@ install_jarvis() {
         echo -e "${CYAN}│                    🦞 GROK 3 (grok3api)                     │${NC}"
         echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
         echo -e "│  🔧 ДЛЯ ПОДКЛЮЧЕНИЯ НУЖЕН БРАУЗЕР GOOGLE CHROME:                │${NC}"
-        echo -e "│                                                             │${NC}"
-        echo -e "│  📌 Библиотека grok3api автоматически получает cookies      │${NC}"
-        echo -e "│     из вашего браузера и работает с Grok 3.                 │${NC}"
-        echo -e "│                                                             │${NC}"
-        echo -e "│  ⚙️  Требования:                                            │${NC}"
-        echo -e "│     - Установленный Google Chrome                           │${NC}"
-        echo -e "│     - Активная сессия в x.ai (войдите один раз)             │${NC}"
-        echo -e "│                                                             │${NC}"
-        echo -e "│  ✅ Плюсы:                                                  │${NC}"
-        echo -e "│     - Полностью бесплатно                                   │${NC}"
-        echo -e "│     - Поддержка генерации изображений                       │${NC}"
-        echo -e "│                                                             │${NC}"
-        echo -e "│  ⚠️  Минусы:                                                │${NC}"
-        echo -e "│     - Требуется Google Chrome                               │${NC}"
-        echo -e "│     - Может быть нестабильно при смене cookies              │${NC}"
+        echo -e "│  📌 Библиотека grok3api автоматически получает cookies          │${NC}"
+        echo -e "│  ⚙️  Требования: Google Chrome, активная сессия в x.ai          │${NC}"
+        echo -e "│  ✅ Плюсы: полностью бесплатно, поддержка генерации изображений │${NC}"
+        echo -e "│  ⚠️  Минусы: требуется Google Chrome, может быть нестабильно    │${NC}"
         echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
         echo ""
         
@@ -1784,10 +1780,9 @@ install_jarvis() {
         ollama pull $MODEL
     fi
 
-    if [[ "$MODEL" == *"llava"* ]] || [[ "$MODEL" == *"moondream"* ]]; then
-        print_info "Скачивание whisper для голоса..."
-        ollama pull whisper:tiny 2>/dev/null || true
-    fi
+    # Устанавливаем whisper через pip (для распознавания речи)
+    print_info "Установка Whisper для распознавания речи..."
+    sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install openai-whisper
 
     id "$JARVIS_USER" &>/dev/null || useradd -m -s /usr/sbin/nologin $JARVIS_USER
     mkdir -p $JARVIS_DIR $SKILLS_DIR $JARVIS_DIR/clawhub_skills
