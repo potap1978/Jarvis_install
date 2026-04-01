@@ -1596,6 +1596,14 @@ install_jarvis() {
         USE_OPENAI="false"
     fi
 
+    # ============================================
+    # СОЗДАЁМ ДИРЕКТОРИЮ И КОНФИГ ДО НАСТРОЕК
+    # ============================================
+    mkdir -p $JARVIS_DIR
+    chown $JARVIS_USER:$JARVIS_USER $JARVIS_DIR 2>/dev/null || true
+    touch $CONFIG_FILE
+    chown $JARVIS_USER:$JARVIS_USER $CONFIG_FILE 2>/dev/null || true
+
     # НАСТРОЙКА ВРЕМЕНИ
     configure_time
 
