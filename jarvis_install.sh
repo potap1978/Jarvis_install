@@ -520,7 +520,6 @@ def process_skills(text, user_id, skills_config, send_callback=None):
 def get_base_skills_list():
     return ["system", "file", "weather", "search", "reminder"]
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/base.py
 }
 
 # ============================================
@@ -641,7 +640,6 @@ def process_google_skills(text, user_id):
         return google_search_contacts(text_lower.replace('контакт', '').strip())
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/google.py
 }
 
 # ============================================
@@ -687,7 +685,6 @@ def process_github_skills(text, user_id):
                 return github_create_issue(repo, rest[0].strip(), rest[1].strip())
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/github.py
 }
 
 # ============================================
@@ -729,7 +726,6 @@ def process_crypto_skills(text, user_id):
         return get_currency_rate('rub')
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/crypto.py
 }
 
 # ============================================
@@ -756,7 +752,6 @@ def process_weather_skills(text, user_id):
         return get_weather_forecast(city_match.group(1) if city_match else "Moscow")
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/weather.py
 }
 
 # ============================================
@@ -813,7 +808,6 @@ def process_telegram_skills(text, user_id, is_admin):
         return remove_telegram_user(text_lower.replace('deluser ', '').strip())
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/telegram.py
 }
 
 # ============================================
@@ -860,7 +854,6 @@ def process_self_improving(text, user_id):
             return f"✅ Запомнил: {parts[0]} -> {parts[1]}"
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/self_improving.py
 }
 
 create_api_gateway_adapter() {
@@ -893,7 +886,6 @@ def process_api_gateway(text, user_id):
             return call_api(parts[0], parts[1])
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/api_gateway.py
 }
 
 create_browser_adapter() {
@@ -917,7 +909,6 @@ def process_browser_skills(text, user_id):
         return browser_navigate(url)
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/agent_browser.py
 }
 
 create_excel_adapter() {
@@ -940,7 +931,6 @@ def process_excel_skills(text, user_id):
         return excel_read(text[10:].strip())
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/excel.py
 }
 
 create_word_adapter() {
@@ -964,7 +954,6 @@ def process_word_skills(text, user_id):
         return word_read(text[10:].strip())
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/word.py
 }
 
 create_obsidian_adapter() {
@@ -988,7 +977,6 @@ def process_obsidian_skills(text, user_id):
         return create_note(text[17:].strip())
     return None
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $SKILLS_DIR/obsidian.py
 }
 
 # ============================================
@@ -998,7 +986,6 @@ install_clawhub_skills() {
     show_clawhub_skills
     SELECTED=$(cat /tmp/clawhub_selected)
     
-    # Создаём директории ДО создания файлов
     mkdir -p $JARVIS_DIR/clawhub_skills
     mkdir -p $SKILLS_DIR
     
@@ -1012,11 +999,6 @@ install_clawhub_skills() {
             6) create_excel_adapter; print_success "  ✅ Excel / XLSX установлен" ;;
         esac
     done
-    
-    if [[ "$SELECTED" == *"5"* ]] || [[ "$SELECTED" == *"6"* ]]; then
-        print_info "Установка дополнительных библиотек..."
-        sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install --quiet pandas openpyxl python-docx
-    fi
     
     print_success "Навыки ClawHub установлены!"
     pause
@@ -1182,17 +1164,14 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_chat_action("typing")
     
     try:
-        # 1. Скачиваем голосовое
         voice_file = await update.message.voice.get_file()
         voice_path = f"/tmp/voice_{user_id}.ogg"
         await voice_file.download_to_drive(voice_path)
         
-        # 2. Конвертируем в WAV
         wav_path = f"/tmp/voice_{user_id}.wav"
         subprocess.run(["ffmpeg", "-i", voice_path, "-ar", "16000", "-ac", "1", wav_path, "-y"], 
                       capture_output=True)
         
-        # 3. Распознаём речь через whisper (Python библиотека)
         recognized_text = ""
         try:
             import whisper
@@ -1200,7 +1179,6 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result = model.transcribe(wav_path, language="ru")
             recognized_text = result["text"]
         except ImportError:
-            # Если whisper не установлен, пробуем через Ollama
             try:
                 whisper_response = requests.post("http://127.0.0.1:11434/api/generate", json={
                     "model": "whisper",
@@ -1219,10 +1197,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("🎤 Не удалось распознать речь")
             return
         
-        # 4. Отправляем распознанный текст
         await update.message.reply_text(f"🎤 Вы сказали: {recognized_text}")
         
-        # 5. Получаем ответ от модели
         await update.message.reply_chat_action("typing")
         response = await get_ai_response(recognized_text)
         
@@ -1230,10 +1206,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Не удалось получить ответ от модели")
             return
         
-        # 6. Отправляем текстовый ответ
         await update.message.reply_text(response)
         
-        # 7. Если включён TTS — отправляем голосом
         if TTS_ENGINE == "edge":
             await send_voice_edge(update, response)
         elif TTS_ENGINE == "silero":
@@ -1247,27 +1221,19 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 os.remove(path)
 
 async def send_voice_edge(update: Update, text):
-    """Отправка голосового сообщения через Edge TTS"""
     try:
         import edge_tts
-        
         output_path = f"/tmp/jarvis_response_{update.effective_user.id}.mp3"
-        
-        # Синтез речи
         communicate = edge_tts.Communicate(text, TTS_VOICE)
         await communicate.save(output_path)
-        
-        # Отправка голосового
         with open(output_path, 'rb') as f:
             await update.message.reply_voice(voice=f)
-        
         os.remove(output_path)
     except Exception as e:
         print(f"Edge TTS Error: {e}")
         await update.message.reply_text("⚠️ Не удалось синтезировать голос")
 
 async def send_voice_silero(update: Update, text):
-    """Отправка голосового сообщения через Silero TTS (локально)"""
     try:
         import torch
         import soundfile as sf
@@ -1275,7 +1241,6 @@ async def send_voice_silero(update: Update, text):
         
         output_path = f"/tmp/jarvis_response_{update.effective_user.id}.wav"
         
-        # Загрузка модели (один раз)
         if not hasattr(send_voice_silero, "model"):
             device = torch.device('cpu')
             send_voice_silero.model, _ = torch.hub.load(
@@ -1286,22 +1251,18 @@ async def send_voice_silero(update: Update, text):
             )
             send_voice_silero.model.to(device)
         
-        # Выбор голоса
         if TTS_VOICE == "random":
             voices = ["xenia", "eugene", "aidar", "baya", "kseniya"]
             speaker = random.choice(voices)
         else:
             speaker = TTS_VOICE
         
-        # Синтез речи
         audio = send_voice_silero.model.apply_tts(text, speaker=speaker, sample_rate=48000)
         sf.write(output_path, audio, 48000)
         
-        # Конвертируем в MP3 для Telegram
         mp3_path = output_path.replace('.wav', '.mp3')
         subprocess.run(["ffmpeg", "-i", output_path, "-y", mp3_path], capture_output=True)
         
-        # Отправка
         with open(mp3_path, 'rb') as f:
             await update.message.reply_voice(voice=f)
         
@@ -1312,7 +1273,6 @@ async def send_voice_silero(update: Update, text):
         await update.message.reply_text("⚠️ Не удалось синтезировать голос")
 
 async def get_ai_response(prompt):
-    """Получение ответа от выбранной модели"""
     try:
         if USE_XAI and XAI_API_KEY:
             response = requests.post(
@@ -1362,7 +1322,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     is_admin = user_id == ALLOWED_USERS[0] if ALLOWED_USERS else False
     
-    # Проверка навыков
     for module_name, module in skills_modules.items():
         if hasattr(module, 'process_skills'):
             result = module.process_skills(user_text, user_id, skills_config)
@@ -1425,7 +1384,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(result)
                 return
     
-    # Обычный диалог с ИИ
     await update.message.reply_chat_action("typing")
     response = await get_ai_response(user_text)
     if response:
@@ -1472,7 +1430,6 @@ def main():
 if __name__ == "__main__":
     main()
 EOF
-    chown $JARVIS_USER:$JARVIS_USER $BOT_SCRIPT
 }
 
 # ============================================
@@ -1688,9 +1645,7 @@ install_jarvis() {
     # СОЗДАЁМ ДИРЕКТОРИЮ И КОНФИГ ДО НАСТРОЕК
     # ============================================
     mkdir -p $JARVIS_DIR
-    chown $JARVIS_USER:$JARVIS_USER $JARVIS_DIR 2>/dev/null || true
     touch $CONFIG_FILE
-    chown $JARVIS_USER:$JARVIS_USER $CONFIG_FILE 2>/dev/null || true
 
     # НАСТРОЙКА ВРЕМЕНИ
     configure_time
@@ -1799,13 +1754,12 @@ install_jarvis() {
         ollama pull $MODEL
     fi
 
-    # Устанавливаем whisper через pip (для распознавания речи)
-    print_info "Установка Whisper для распознавания речи..."
-    sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install openai-whisper
-
+    # Создание пользователя
     id "$JARVIS_USER" &>/dev/null || useradd -m -s /usr/sbin/nologin $JARVIS_USER
+    
+    # Создаём директории и устанавливаем права
     mkdir -p $JARVIS_DIR $SKILLS_DIR $JARVIS_DIR/clawhub_skills
-    chown $JARVIS_USER:$JARVIS_USER $JARVIS_DIR $SKILLS_DIR $JARVIS_DIR/clawhub_skills
+    chown -R $JARVIS_USER:$JARVIS_USER $JARVIS_DIR $SKILLS_DIR $JARVIS_DIR/clawhub_skills
 
     # Создание конфига
     cat > $CONFIG_FILE << EOF
@@ -1824,6 +1778,7 @@ EOF
         echo "OPENAI_API_KEY=\"$OPENAI_KEY\"" >> $CONFIG_FILE
         echo "OPENAI_MODEL=\"$OPENAI_MODEL\"" >> $CONFIG_FILE
     fi
+    chown $JARVIS_USER:$JARVIS_USER $CONFIG_FILE
 
     # Создание навыков
     print_info "Создание навыков..."
@@ -1843,7 +1798,7 @@ EOF
     # Создание бота
     create_bot_script
     chmod +x $BOT_SCRIPT
-    chown -R $JARVIS_USER:$JARVIS_USER $JARVIS_DIR
+    chown $JARVIS_USER:$JARVIS_USER $BOT_SCRIPT
 
     # Виртуальное окружение
     print_info "Настройка Python окружения..."
@@ -1876,6 +1831,10 @@ EOF
         echo "   sudo -u $JARVIS_USER python3 -c 'from grok3api.client import GrokClient; GrokClient()'"
         echo "   Откроется браузер, войдите в свой аккаунт x.ai"
     fi
+
+    # Установка whisper через pip (для распознавания речи)
+    print_info "Установка Whisper для распознавания речи..."
+    sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install openai-whisper
 
     # Systemd сервис
     create_systemd_service
@@ -1948,11 +1907,36 @@ while true; do
     case $choice in
         1) install_jarvis ;;
         2) 
-            systemctl stop jarvis-bot 2>/dev/null
-            systemctl disable jarvis-bot 2>/dev/null
-            rm -rf $JARVIS_DIR $SERVICE_FILE
+            echo ""
+            echo -e "${YELLOW}⚠️  ВНИМАНИЕ! Это действие полностью удалит Джарвиса и все его данные.${NC}"
+            echo -e "${YELLOW}   Будут удалены:${NC}"
+            echo -e "   - /opt/jarvis (бот, навыки, конфиги)"
+            echo -e "   - systemd сервис jarvis-bot"
+            echo -e "   - Все данные навыков ClawHub"
+            echo ""
+            read -p "👉 Вы уверены, что хотите удалить Джарвиса? (y/N): " confirm_delete
+            if [[ "$confirm_delete" != "y" && "$confirm_delete" != "Y" ]]; then
+                print_info "Удаление отменено"
+                pause
+                break
+            fi
+            
+            echo ""
+            print_info "Останавливаю сервис..."
+            systemctl stop jarvis-bot 2>/dev/null || true
+            systemctl disable jarvis-bot 2>/dev/null || true
+            
+            print_info "Удаляю файлы..."
+            rm -rf $JARVIS_DIR 2>/dev/null || true
+            rm -f $SERVICE_FILE 2>/dev/null || true
+            
             systemctl daemon-reload
-            print_success "Джарвис удалён"
+            
+            print_success "Джарвис полностью удалён!"
+            echo ""
+            echo -e "${GREEN}✅ Для полной очистки системы вы можете также удалить:${NC}"
+            echo -e "   - Ollama: apt remove ollama && rm -rf /usr/local/bin/ollama /usr/share/ollama"
+            echo -e "   - Python пакеты: pip uninstall -y python-telegram-bot requests pillow"
             pause
             ;;
         3)
