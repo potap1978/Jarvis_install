@@ -1591,7 +1591,11 @@ install_jarvis() {
     echo ""
     read -p "👉 Дополнительные Chat ID (через пробел, или пусто): " EXTRA_USERS
 
-    # ChatGPT API
+    # ============================================
+    # НАСТРОЙКА API ДЛЯ ВЫБРАННЫХ МОДЕЛЕЙ
+    # ============================================
+    
+    # ChatGPT API (отдельный запрос, не зависит от модели)
     echo ""
     echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────┐${NC}"
     echo -e "${YELLOW}│                    🤖 CHATGPT API                          │${NC}"
@@ -1608,6 +1612,63 @@ install_jarvis() {
         USE_OPENAI="true"
     else
         USE_OPENAI="false"
+    fi
+
+    # Grok 3 API (если выбрана модель 36)
+    if [[ "$MODEL" == "grok-3-api" ]]; then
+        echo ""
+        echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${CYAN}│                    🦞 GROK 3 (API xAI)                      │${NC}"
+        echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "│  🔑 ДЛЯ ПОДКЛЮЧЕНИЯ НУЖЕН API-КЛЮЧ xAI:                         │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  1. Перейдите на https://console.x.ai                       │${NC}"
+        echo -e "│  2. Зарегистрируйтесь / войдите                             │${NC}"
+        echo -e "│  3. Создайте новый API-ключ                                 │${NC}"
+        echo -e "│  4. Скопируйте ключ (начинается с xai-...)                  │${NC}"
+        echo -e "│                                                             │${NC}"
+        echo -e "│  💰 Стоимость: Grok 3: $3 за 1M токенов, $5 кредит при рег.│${NC}"
+        echo -e "│  🌐 Подробнее: https://docs.x.ai/api                        │${NC}"
+        echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        read -p "👉 Введите API-ключ xAI: " XAI_KEY
+        
+        if [ -n "$XAI_KEY" ]; then
+            USE_XAI="true"
+            print_success "API-ключ xAI сохранён"
+        else
+            USE_XAI="false"
+            print_warning "API-ключ не введён, Grok 3 API не будет использоваться"
+        fi
+    else
+        USE_XAI="false"
+        XAI_KEY=""
+    fi
+    
+    # Grok 3 через grok3api (если выбрана модель 37)
+    if [[ "$MODEL" == "grok-3-lib" ]]; then
+        echo ""
+        echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${CYAN}│                    🦞 GROK 3 (grok3api)                     │${NC}"
+        echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
+        echo -e "│  🔧 ДЛЯ ПОДКЛЮЧЕНИЯ НУЖЕН БРАУЗЕР GOOGLE CHROME:                │${NC}"
+        echo -e "│  📌 Библиотека grok3api автоматически получает cookies          │${NC}"
+        echo -e "│  ⚙️  Требования: Google Chrome, активная сессия в x.ai          │${NC}"
+        echo -e "│  ✅ Плюсы: полностью бесплатно, поддержка генерации изображений │${NC}"
+        echo -e "│  ⚠️  Минусы: требуется Google Chrome, может быть нестабильно    │${NC}"
+        echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
+        echo ""
+        
+        read -p "👉 Установить Google Chrome и grok3api? (y/N): " install_grok_lib
+        if [[ "$install_grok_lib" == "y" || "$install_grok_lib" == "Y" ]]; then
+            INSTALL_GROK_LIB="true"
+            print_info "Google Chrome и grok3api будут установлены позже"
+        else
+            INSTALL_GROK_LIB="false"
+            print_warning "Установка grok3api пропущена"
+        fi
+    else
+        INSTALL_GROK_LIB="false"
     fi
 
     # ============================================
@@ -1641,7 +1702,7 @@ install_jarvis() {
     fi
 
     # ============================================
-    # УСТАНОВКА GROK
+    # УСТАНОВКА GROK 2 (локальная модель)
     # ============================================
     if [[ "$MODEL" == "grok-2:latest" ]]; then
         echo ""
@@ -1675,68 +1736,6 @@ install_jarvis() {
         
         print_info "Скачивание Grok 2 (это займёт много времени и места)..."
         ollama pull MichelRosselli/grok-2:Q4_K_M
-        
-    elif [[ "$MODEL" == "grok-3-api" ]]; then
-        echo ""
-        echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
-        echo -e "${CYAN}│                    🦞 GROK 3 (API xAI)                      │${NC}"
-        echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
-        echo -e "│  🔑 ДЛЯ ПОДКЛЮЧЕНИЯ НУЖЕН API-КЛЮЧ xAI:                         │${NC}"
-        echo -e "│                                                             │${NC}"
-        echo -e "│  1. Перейдите на https://console.x.ai                       │${NC}"
-        echo -e "│  2. Зарегистрируйтесь / войдите                             │${NC}"
-        echo -e "│  3. Создайте новый API-ключ                                 │${NC}"
-        echo -e "│  4. Скопируйте ключ (начинается с xai-...)                  │${NC}"
-        echo -e "│                                                             │${NC}"
-        echo -e "│  💰 Стоимость: Grok 3: $3 за 1M токенов, $5 кредит при рег.│${NC}"
-        echo -e "│  🌐 Подробнее: https://docs.x.ai/api                        │${NC}"
-        echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
-        echo ""
-        read -p "👉 Введите API-ключ xAI: " XAI_KEY
-        
-        if [ -n "$XAI_KEY" ]; then
-            echo "USE_XAI=true" >> $CONFIG_FILE
-            echo "XAI_API_KEY=\"$XAI_KEY\"" >> $CONFIG_FILE
-            print_success "API-ключ xAI сохранён"
-        else
-            print_warning "API-ключ не введён, Grok 3 API не будет использоваться"
-        fi
-        
-    elif [[ "$MODEL" == "grok-3-lib" ]]; then
-        echo ""
-        echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
-        echo -e "${CYAN}│                    🦞 GROK 3 (grok3api)                     │${NC}"
-        echo -e "${CYAN}├─────────────────────────────────────────────────────────────┤${NC}"
-        echo -e "│  🔧 ДЛЯ ПОДКЛЮЧЕНИЯ НУЖЕН БРАУЗЕР GOOGLE CHROME:                │${NC}"
-        echo -e "│  📌 Библиотека grok3api автоматически получает cookies          │${NC}"
-        echo -e "│  ⚙️  Требования: Google Chrome, активная сессия в x.ai          │${NC}"
-        echo -e "│  ✅ Плюсы: полностью бесплатно, поддержка генерации изображений │${NC}"
-        echo -e "│  ⚠️  Минусы: требуется Google Chrome, может быть нестабильно    │${NC}"
-        echo -e "└─────────────────────────────────────────────────────────────┘${NC}"
-        echo ""
-        
-        read -p "👉 Установить Google Chrome и grok3api? (y/N): " install_grok_lib
-        if [[ "$install_grok_lib" == "y" || "$install_grok_lib" == "Y" ]]; then
-            print_info "Установка Google Chrome..."
-            wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-            echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
-            apt update
-            apt install -y google-chrome-stable
-            
-            print_info "Установка grok3api..."
-            sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install grok3api
-            
-            echo "USE_GROK3API=true" >> $CONFIG_FILE
-            print_success "grok3api установлен"
-            
-            echo ""
-            echo -e "${YELLOW}👉 Первый запуск:${NC}"
-            echo "   Для авторизации выполните:"
-            echo "   sudo -u $JARVIS_USER python3 -c 'from grok3api.client import GrokClient; GrokClient()'"
-            echo "   Откроется браузер, войдите в свой аккаунт x.ai"
-        else
-            print_warning "Установка grok3api пропущена"
-        fi
     fi
 
     # Подтверждение
@@ -1749,6 +1748,13 @@ install_jarvis() {
     echo -e "🧠 Модель: ${GREEN}$MODEL${NC}"
     echo -e "👥 Доп. пользователи: ${GREEN}${EXTRA_USERS:-нет}${NC}"
     echo -e "🤖 ChatGPT API: ${GREEN}$USE_OPENAI${NC}"
+    if [[ "$USE_OPENAI" == "true" ]]; then
+        echo -e "🔑 OpenAI ключ: ${GREEN}${OPENAI_KEY:0:15}...${NC}"
+    fi
+    echo -e "🤖 Grok API: ${GREEN}$USE_XAI${NC}"
+    if [[ "$USE_XAI" == "true" ]]; then
+        echo -e "🔑 xAI ключ: ${GREEN}${XAI_KEY:0:15}...${NC}"
+    fi
     echo -e "🎤 TTS движок: ${GREEN}$TTS_ENGINE${NC}"
     if [[ "$TTS_ENGINE" != "none" ]]; then
         echo -e "🎤 TTS голос: ${GREEN}$TTS_VOICE${NC}"
@@ -1797,6 +1803,9 @@ OLLAMA_URL="http://127.0.0.1:11434/api/generate"
 USE_OPENAI="$USE_OPENAI"
 TTS_ENGINE="$TTS_ENGINE"
 TTS_VOICE="$TTS_VOICE"
+USE_XAI="$USE_XAI"
+XAI_API_KEY="$XAI_KEY"
+USE_GROK3API="$INSTALL_GROK_LIB"
 EOF
     if [[ "$USE_OPENAI" == "true" ]]; then
         echo "OPENAI_API_KEY=\"$OPENAI_KEY\"" >> $CONFIG_FILE
@@ -1835,6 +1844,24 @@ EOF
     elif [[ "$TTS_ENGINE" == "silero" ]]; then
         print_info "Установка Silero TTS..."
         sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install torch soundfile
+    fi
+
+    # Установка grok3api если выбрано
+    if [[ "$INSTALL_GROK_LIB" == "true" ]]; then
+        print_info "Установка Google Chrome..."
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+        apt update
+        apt install -y google-chrome-stable
+        
+        print_info "Установка grok3api..."
+        sudo -u $JARVIS_USER $JARVIS_DIR/venv/bin/pip install grok3api
+        
+        echo ""
+        echo -e "${YELLOW}👉 Первый запуск:${NC}"
+        echo "   Для авторизации выполните:"
+        echo "   sudo -u $JARVIS_USER python3 -c 'from grok3api.client import GrokClient; GrokClient()'"
+        echo "   Откроется браузер, войдите в свой аккаунт x.ai"
     fi
 
     # Systemd сервис
